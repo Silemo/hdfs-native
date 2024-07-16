@@ -109,27 +109,27 @@ impl NameServiceProxy {
         }
     }
 
-    async fn msync_if_needed(&self) -> Result<()> {
-        if !self.msycned.fetch_or(true, Ordering::SeqCst) {
-            let msync_msg = hdfs::MsyncRequestProto::default();
-            self.call_inner("msync", msync_msg.encode_length_delimited_to_vec())
-                .await
-                .map(|_| ())
-                .or_else(|err| match err {
-                    HdfsError::RPCError(class, _)
-                        if class == "java.lang.UnsupportedOperationException"
-                            || class == "org.apache.hadoop.ipc.RpcNoSuchMethodException" =>
-                    {
-                        Ok(())
-                    }
-                    _ => Err(err),
-                })?;
-        }
-        Ok(())
-    }
+    //async fn msync_if_needed(&self) -> Result<()> {
+    //    if !self.msycned.fetch_or(true, Ordering::SeqCst) {
+    //        let msync_msg = hdfs::MsyncRequestProto::default();
+    //        self.call_inner("msync", msync_msg.encode_length_delimited_to_vec())
+    //            .await
+    //            .map(|_| ())
+    //            .or_else(|err| match err {
+    //                HdfsError::RPCError(class, _)
+    //                    if class == "java.lang.UnsupportedOperationException"
+    //                        || class == "org.apache.hadoop.ipc.RpcNoSuchMethodException" =>
+    //                {
+    //                    Ok(())
+    //                }
+    //                _ => Err(err),
+    //            })?;
+    //    }
+    //    Ok(())
+    //}
 
     pub(crate) async fn call(&self, method_name: &'static str, message: Vec<u8>) -> Result<Bytes> {
-        self.msync_if_needed().await?;
+        //self.msync_if_needed().await?;
         self.call_inner(method_name, message).await
     }
 

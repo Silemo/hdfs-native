@@ -3454,12 +3454,12 @@ pub struct ListOpenFilesResponseProto {
     #[prost(enumeration = "OpenFilesTypeProto", repeated, packed = "false", tag = "3")]
     pub types: ::prost::alloc::vec::Vec<i32>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MsyncRequestProto {}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MsyncResponseProto {}
+//#[allow(clippy::derive_partial_eq_without_eq)]
+//#[derive(Clone, PartialEq, ::prost::Message)]
+//pub struct MsyncRequestProto {}
+//#[allow(clippy::derive_partial_eq_without_eq)]
+//#[derive(Clone, PartialEq, ::prost::Message)]
+//pub struct MsyncResponseProto {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SatisfyStoragePolicyRequestProto {
