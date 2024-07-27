@@ -69,7 +69,7 @@ impl ProxyConnection {
 pub(crate) struct NameServiceProxy {
     proxy_connections: Vec<Arc<tokio::sync::Mutex<ProxyConnection>>>,
     current_index: AtomicUsize,
-    msycned: AtomicBool,
+    //msycned: AtomicBool,
 }
 
 impl NameServiceProxy {
@@ -105,7 +105,7 @@ impl NameServiceProxy {
         NameServiceProxy {
             proxy_connections,
             current_index: AtomicUsize::new(0),
-            msycned: AtomicBool::new(false),
+            //msycned: AtomicBool::new(false),
         }
     }
 
