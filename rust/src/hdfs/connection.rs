@@ -227,6 +227,7 @@ impl RpcConnection {
             real_user: self.user_info.real_user.clone(),
         };
 
+        print!("DBG-HDFS_NATIVE: get_connection_context PROTOCOL: {} \n", PROTOCOL);
         let context = common::IpcConnectionContextProto {
             protocol: Some(PROTOCOL.to_string()),
             user_info: Some(user_info),
@@ -267,6 +268,8 @@ impl RpcConnection {
         debug!("RPC connection header: {:?}", conn_header);
 
         let conn_header_buf = conn_header.encode_length_delimited_to_vec();
+
+        print!("DBG-HDFS_NATIVE: call PROTOCOL: {} \n", PROTOCOL);
 
         let msg_header = common::RequestHeaderProto {
             method_name: method_name.to_string(),
