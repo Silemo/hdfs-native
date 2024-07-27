@@ -35,6 +35,7 @@ impl ProxyConnection {
         alignment_context: Arc<Mutex<AlignmentContext>>,
         nameservice: Option<String>,
     ) -> Self {
+        print!("DBG: HDFS-NATIVE hdfs/proxy.rs ProxyConnection new()\n");
         ProxyConnection {
             url,
             inner: None,
@@ -44,6 +45,7 @@ impl ProxyConnection {
     }
 
     async fn get_connection(&mut self) -> Result<&RpcConnection> {
+        print!("DBG: HDFS-NATIVE hdfs/proxy.rs ProxyConnection get_connection()\n");
         if self.inner.is_none() || !self.inner.as_ref().unwrap().is_alive() {
             self.inner = Some(
                 RpcConnection::connect(
@@ -58,6 +60,7 @@ impl ProxyConnection {
     }
 
     async fn call(&mut self, method_name: &str, message: &[u8]) -> Result<Bytes> {
+        print!("DBG: HDFS-NATIVE hdfs/proxy.rs ProxyConnection call()\n");
         self.get_connection()
             .await?
             .call(method_name, message)
@@ -76,6 +79,7 @@ impl NameServiceProxy {
     /// Creates a new proxy for a name service. If the URL contains a port,
     /// it is assumed to be for a single NameNode.
     pub(crate) fn new(nameservice: &Url, config: &Configuration) -> Self {
+        print!("DBG: HDFS-NATIVE hdfs/proxy.rs NameServiceProxy new()\n");
         let alignment_context = Arc::new(Mutex::new(AlignmentContext::default()));
 
         let proxy_connections = if let Some(port) = nameservice.port() {
@@ -130,14 +134,17 @@ impl NameServiceProxy {
 
     pub(crate) async fn call(&self, method_name: &'static str, message: Vec<u8>) -> Result<Bytes> {
         //self.msync_if_needed().await?;
+        print!("DBG: HDFS-NATIVE hdfs/proxy.rs ProxyConnection call()\n");
         self.call_inner(method_name, message).await
     }
 
     fn is_retriable(exception: &str) -> bool {
+        print!("DBG: HDFS-NATIVE hdfs/proxy.rs ProxyConnection is_retriable()\n");
         exception == STANDBY_EXCEPTION || exception == OBSERVER_RETRY_EXCEPTION
     }
 
     async fn call_inner(&self, method_name: &'static str, message: Vec<u8>) -> Result<Bytes> {
+        print!("DBG: HDFS-NATIVE hdfs/proxy.rs ProxyConnection call_inner()\n");
         let mut proxy_index = self.current_index.load(Ordering::SeqCst);
         let mut attempts = 0;
         loop {
@@ -169,6 +176,7 @@ impl NameServiceProxy {
     }
 
     fn convert_rpc_error(exception: String, msg: String) -> HdfsError {
+        print!("DBG: HDFS-NATIVE hdfs/proxy.rs ProxyConnection convert_rpc_error()\n");
         match exception.as_ref() {
             "org.apache.hadoop.fs.FileAlreadyExistsException" => HdfsError::AlreadyExists(msg),
             "org.apache.hadoop.hdfs.protocol.AlreadyBeingCreatedException" => {
