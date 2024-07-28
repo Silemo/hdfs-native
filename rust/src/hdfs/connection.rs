@@ -235,13 +235,13 @@ impl RpcConnection {
             real_user: self.user_info.real_user.clone(),
         };
 
-        print!("DBG-HDFS_NATIVE: hdfs/connection.rs RpcConnection get_connection_context() PROTOCOL: {} \n", PROTOCOL);
+        print!("DBG: HDFS_NATIVE hdfs/connection.rs RpcConnection get_connection_context() PROTOCOL: {} \n", PROTOCOL);
         let context = common::IpcConnectionContextProto {
             protocol: Some(PROTOCOL.to_string()),
             user_info: Some(user_info),
         };
 
-        debug!("Connection context: {:?}", context);
+        print!("DBG: HDFS_NATIVE hdfs/connection.rs RpcConnection get_connection_context - Connection context: {:?}\n", context);
         context
     }
 
@@ -276,18 +276,18 @@ impl RpcConnection {
         let call_id = self.get_next_call_id();
         let conn_header = self.get_connection_header(call_id, 0);
 
-        debug!("RPC connection header: {:?}", conn_header);
+        print!("DBG: HDFS-NATIVE hdfs/conection.rs RpcConnection call() -  RPC connection header: {:?} \n", conn_header);
 
         let conn_header_buf = conn_header.encode_length_delimited_to_vec();
 
-        print!("DBG-HDFS_NATIVE hdfs/connection.rs RpcConnection call() PROTOCOL: {} \n", PROTOCOL);
+        print!("DBG: HDFS_NATIVE hdfs/connection.rs RpcConnection call() PROTOCOL: {} \n", PROTOCOL);
 
         let msg_header = common::RequestHeaderProto {
             method_name: method_name.to_string(),
             declaring_class_protocol_name: PROTOCOL.to_string(),
             client_protocol_version: 1,
         };
-        debug!("RPC request header: {:?}", msg_header);
+        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection call() - RPC request header: {:?} \n", msg_header);
 
         let header_buf = msg_header.encode_length_delimited_to_vec();
 
@@ -351,7 +351,7 @@ impl RpcListener {
         let mut bytes = buf.freeze();
         let rpc_response = common::RpcResponseHeaderProto::decode_length_delimited(&mut bytes)?;
 
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs - RPC header response: {:?}", rpc_response);
+        print!("DBG: HDFS-NATIVE hdfs/connection.rs - RPC header response: {:?}\n", rpc_response);
 
         let call_id = rpc_response.call_id as i32;
 
