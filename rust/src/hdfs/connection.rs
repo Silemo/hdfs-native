@@ -351,7 +351,7 @@ impl RpcListener {
         let mut bytes = buf.freeze();
         let rpc_response = common::RpcResponseHeaderProto::decode_length_delimited(&mut bytes)?;
 
-        debug!("RPC header response: {:?}", rpc_response);
+        print!("DBG: HDFS-NATIVE hdfs/connection.rs - RPC header response: {:?}", rpc_response);
 
         let call_id = rpc_response.call_id as i32;
 
@@ -360,6 +360,7 @@ impl RpcListener {
         if let Some(call) = call {
             match rpc_response.status() {
                 RpcStatusProto::Success => {
+                    print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener RpcStatusProto::Success\n");
                     self.alignment_context
                         .lock()
                         .unwrap()
@@ -367,12 +368,14 @@ impl RpcListener {
                     let _ = call.send(Ok(bytes));
                 }
                 RpcStatusProto::Error => {
+                    print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener RpcStatusProto::Error\n");
                     let _ = call.send(Err(HdfsError::RPCError(
                         rpc_response.exception_class_name().to_string(),
                         rpc_response.error_msg().to_string(),
                     )));
                 }
                 RpcStatusProto::Fatal => {
+                    print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener RpcStatusProto::Fatal\n");
                     warn!(
                         "RPC fatal error: {}: {}",
                         rpc_response.exception_class_name(),
