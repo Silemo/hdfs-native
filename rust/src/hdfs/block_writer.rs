@@ -37,6 +37,7 @@ impl BlockWriter {
         server_defaults: hdfs::FsServerDefaultsProto,
         ec_schema: Option<&EcSchema>,
     ) -> Result<Self> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs BlockWriter new()\n");
         let block_writer = if let Some(ec_schema) = ec_schema {
             Self::Striped(StripedBlockWriter::new(
                 protocol,
@@ -54,6 +55,7 @@ impl BlockWriter {
     }
 
     pub(crate) async fn write(&mut self, buf: &mut Bytes) -> Result<()> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs BlockWriter write()\n");
         match self {
             Self::Replicated(writer) => writer.write(buf).await,
             Self::Striped(writer) => writer.write(buf).await,
@@ -61,6 +63,7 @@ impl BlockWriter {
     }
 
     pub(crate) fn is_full(&self) -> bool {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs BlockWriter is_full()\n");
         match self {
             Self::Replicated(writer) => writer.is_full(),
             Self::Striped(writer) => writer.is_full(),
@@ -68,6 +71,7 @@ impl BlockWriter {
     }
 
     pub(crate) fn get_extended_block(&self) -> hdfs::ExtendedBlockProto {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs BlockWriter get_extended_block()\n");
         match self {
             Self::Replicated(writer) => writer.get_extended_block(),
             Self::Striped(writer) => writer.get_extended_block(),
@@ -75,6 +79,7 @@ impl BlockWriter {
     }
 
     pub(crate) async fn close(self) -> Result<()> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs BlockWriter close()\n");
         match self {
             Self::Replicated(writer) => writer.close().await,
             Self::Striped(writer) => writer.close().await,
@@ -109,6 +114,7 @@ impl ReplicatedBlockWriter {
         block_size: usize,
         server_defaults: hdfs::FsServerDefaultsProto,
     ) -> Result<Self> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs ReplicatedBlockWriter new()\n");
         let datanode = &block.locs[0].id;
         let mut connection = DatanodeConnection::connect(
             datanode,
@@ -200,6 +206,7 @@ impl ReplicatedBlockWriter {
 
     // Create the next packet and return the current packet
     fn create_next_packet(&mut self) -> Packet {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs ReplicatedBlockWriter create_next_packet()\n");
         let next_packet = Packet::empty(
             self.block.b.num_bytes() as i64,
             self.next_seqno,
@@ -211,6 +218,7 @@ impl ReplicatedBlockWriter {
     }
 
     async fn queue_ack(&self) -> Result<()> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs ReplicatedBlockWriter queue_ack()\n");
         self.ack_queue
             .send((
                 self.current_packet.header.seqno,
@@ -221,6 +229,7 @@ impl ReplicatedBlockWriter {
     }
 
     async fn send_current_packet(&mut self) -> Result<()> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs ReplicatedBlockWriter send_current_packet()\n");
         // Queue up the sequence number for acknowledgement
         self.queue_ack().await?;
 
@@ -235,6 +244,7 @@ impl ReplicatedBlockWriter {
     }
 
     fn check_error(&mut self) -> Result<()> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs ReplicatedBlockWriter check_error()\n");
         // If either task is finished, something went wrong
         if self.ack_listener_handle.is_finished() {
             return Err(HdfsError::DataTransferError(
@@ -252,14 +262,17 @@ impl ReplicatedBlockWriter {
     }
 
     fn is_full(&self) -> bool {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs ReplicatedBlockWriter is_full()\n");
         self.block.b.num_bytes() == self.block_size as u64
     }
 
     fn get_extended_block(&self) -> hdfs::ExtendedBlockProto {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs ReplicatedBlockWriter get_extended_block()\n");
         self.block.b.clone()
     }
 
     async fn write(&mut self, buf: &mut Bytes) -> Result<()> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs ReplicatedBlockWriter write()\n");
         self.check_error()?;
 
         // Only write up to what's left in this block
@@ -286,6 +299,7 @@ impl ReplicatedBlockWriter {
 
     /// Send a packet with any remaining data and then send a last packet
     async fn close(mut self) -> Result<()> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs ReplicatedBlockWriter close()\n");
         self.check_error()?;
 
         // Send a packet with any remaining data
@@ -320,6 +334,7 @@ impl ReplicatedBlockWriter {
         mut reader: DatanodeReader,
         mut ack_queue: mpsc::Receiver<(i64, bool)>,
     ) -> JoinHandle<Result<()>> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs ReplicatedBlockWriter listen_for_acks()\n");
         tokio::spawn(async move {
             loop {
                 let next_ack = reader.read_ack().await?;
@@ -366,6 +381,7 @@ impl ReplicatedBlockWriter {
         mut writer: DatanodeWriter,
         mut packet_receiver: mpsc::Receiver<Packet>,
     ) -> JoinHandle<Result<()>> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs ReplicatedBlockWriter start_packet_sender()\n");
         tokio::spawn(async move {
             while let Some(mut packet) = packet_receiver.recv().await {
                 writer.write_packet(&mut packet).await?;
@@ -379,6 +395,7 @@ impl ReplicatedBlockWriter {
     }
 
     fn start_heartbeat_sender(packet_sender: mpsc::Sender<Packet>) -> JoinHandle<()> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs ReplicatedBlockWriter start_heartbeat_sender()\n");
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(Duration::from_secs(HEARTBEAT_INTERVAL_SECONDS)).await;
@@ -402,6 +419,7 @@ struct CellBuffer {
 
 impl CellBuffer {
     fn new(ec_schema: &EcSchema) -> Self {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs CellBuffer new()\n");
         let buffers = (0..ec_schema.data_units)
             .map(|_| BytesMut::with_capacity(ec_schema.cell_size))
             .collect();
@@ -414,6 +432,7 @@ impl CellBuffer {
     }
 
     fn write(&mut self, buf: &mut Bytes) {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs CellBuffer write()\n");
         while !buf.is_empty() && self.current_index < self.buffers.len() {
             let current_buffer = &mut self.buffers[self.current_index];
             let remaining = self.cell_size - current_buffer.len();
@@ -431,15 +450,18 @@ impl CellBuffer {
 
     #[inline]
     fn is_full(&self) -> bool {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs CellBuffer is_full()\n");
         self.current_index == self.buffers.len()
     }
 
     #[inline]
     fn is_empty(&self) -> bool {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs CellBuffer is_empty()\n");
         self.buffers[0].is_empty()
     }
 
     fn encode(&mut self) -> Vec<Bytes> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs CellBuffer encode()\n");
         // This is kinda dumb how many copies are being made. Figure out how to do this without
         // cloning the buffers at all.
 
@@ -496,6 +518,7 @@ impl StripedBlockWriter {
         block_size: usize,
         server_defaults: hdfs::FsServerDefaultsProto,
     ) -> Self {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs StripedBlockWriter new()\n");
         let block_writers = (0..block.block_indices().len()).map(|_| None).collect();
 
         Self {
@@ -511,10 +534,12 @@ impl StripedBlockWriter {
     }
 
     fn bytes_remaining(&self) -> usize {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs StripedBlockWriter bytes_remaining()\n");
         self.capacity - self.bytes_written
     }
 
     async fn write_cells(&mut self) -> Result<()> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs StripedBlockWriter write_cells()\n");
         let mut write_futures = vec![];
         for (index, (data, writer)) in self
             .cell_buffer
@@ -559,6 +584,7 @@ impl StripedBlockWriter {
     }
 
     async fn write(&mut self, buf: &mut Bytes) -> Result<()> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs StripedBlockWriter write()\n");
         let bytes_to_write = usize::min(buf.len(), self.bytes_remaining());
 
         let mut buf_to_write = buf.split_to(bytes_to_write);
@@ -576,6 +602,7 @@ impl StripedBlockWriter {
     }
 
     async fn close(mut self) -> Result<()> {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs StripedBlockWriter close()\n");
         if !self.cell_buffer.is_empty() {
             self.write_cells().await?;
         }
@@ -594,12 +621,14 @@ impl StripedBlockWriter {
     }
 
     fn is_full(&self) -> bool {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs StripedBlockWriter is_full()\n");
         self.block_writers
             .iter()
             .all(|writer| writer.as_ref().is_some_and(|w| w.is_full()))
     }
 
     fn get_extended_block(&self) -> hdfs::ExtendedBlockProto {
+        print!("DBG: HDFS-NATIVE hdfs/block_writer.rs StripedBlockWriter get_extended_block()\n");
         let mut extended_block = self.block.b.clone();
 
         extended_block.num_bytes = Some(self.bytes_written as u64);
