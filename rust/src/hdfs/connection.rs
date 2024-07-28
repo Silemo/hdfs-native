@@ -276,7 +276,7 @@ impl RpcConnection {
         let call_id = self.get_next_call_id();
         let conn_header = self.get_connection_header(call_id, 0);
 
-        print!("DBG: HDFS-NATIVE hdfs/conection.rs RpcConnection call() -  RPC connection header: {:?} \n", conn_header);
+        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection call() -  RPC connection header: {:?} \n", conn_header);
 
         let conn_header_buf = conn_header.encode_length_delimited_to_vec();
 
