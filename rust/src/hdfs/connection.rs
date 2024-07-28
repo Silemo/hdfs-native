@@ -343,13 +343,15 @@ impl RpcListener {
         let mut buf = [0u8; 4];
         self.reader.read_exact(&mut buf).await?;
         let msg_length = u32::from_be_bytes(buf);
-
+        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener read_response() - After reading msg size\n");
         // Read the whole message
         let mut buf = BytesMut::zeroed(msg_length as usize);
         self.reader.read_exact(&mut buf).await?;
+        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener read_response() - After reading whole msg\n");
 
         let mut bytes = buf.freeze();
         let rpc_response = common::RpcResponseHeaderProto::decode_length_delimited(&mut bytes)?;
+        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener read_response() - After decode_length\n");
 
         print!("DBG: HDFS-NATIVE hdfs/connection.rs - RPC header response: {:?}\n", rpc_response);
 
