@@ -29,7 +29,7 @@ use crate::security::sasl::{SaslReader, SaslRpcClient, SaslWriter};
 use crate::security::user::UserInfo;
 use crate::{HdfsError, Result};
 
-const PROTOCOL: &str = "org.apache.hadoop.hdfs.DistributedFileSystem";
+const PROTOCOL: &str = "org.apache.hadoop.hdfs.protocol.ClientProtocol";
 const DATA_TRANSFER_VERSION: u16 = 28;
 const MAX_PACKET_HEADER_SIZE: usize = 33;
 const DATANODE_CACHE_EXPIRY: TimeDelta = TimeDelta::seconds(3);
