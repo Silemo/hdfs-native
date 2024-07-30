@@ -1,7 +1,7 @@
-#[cfg(feature = "integration-test")]
+#[cfg(feature = "integration-test-features")]
 mod common;
 
-#[cfg(feature = "integration-test")]
+#[cfg(feature = "integration-test-features")]
 mod test {
     use crate::common::{assert_bufs_equal, setup};
     use bytes::{BufMut, BytesMut};

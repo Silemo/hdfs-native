@@ -70,7 +70,12 @@ An object_store implementation for HDFS is provided in the [hdfs-native-object-s
 The tests are mostly integration tests that utilize a small Java application in `rust/mindifs/` that runs a custom `MiniDFSCluster`. To run the tests, you need to have Java, Maven, Hadoop binaries, and Kerberos tools available and on your path. Any Java version between 8 and 17 should work.
 
 ```bash
-cargo test -p hdfs-native --features intergation-test
+cargo test -p hdfs-native --features integration-test-features
+```
+
+For HopsFS only tests:
+```bash
+cargo test -p hdfs-native --features integration-test
 ```
 
 ### Python tests

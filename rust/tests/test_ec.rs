@@ -1,4 +1,4 @@
-#[cfg(feature = "integration-test")]
+#[cfg(feature = "integration-test-features")]
 mod test {
 
     use bytes::{Buf, BufMut, Bytes, BytesMut};

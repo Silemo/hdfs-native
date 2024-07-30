@@ -1,7 +1,7 @@
-#[cfg(feature = "integration-test")]
+#[cfg(feature = "integration-test-features")]
 mod common;
 
-#[cfg(feature = "integration-test")]
+#[cfg(feature = "integration-test-features")]
 mod test {
     use crate::common::{setup, TEST_FILE_INTS};
     use bytes::Buf;

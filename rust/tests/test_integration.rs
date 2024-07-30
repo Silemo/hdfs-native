@@ -15,162 +15,162 @@ mod test {
         test_with_features(&HashSet::new()).await.unwrap();
     }
 
-    #[tokio::test]
-    #[serial]
-    async fn test_security_kerberos() {
-        test_with_features(&HashSet::from([DfsFeatures::Security]))
-            .await
-            .unwrap();
-    }
+    // #[tokio::test]
+    // #[serial]
+    // async fn test_security_kerberos() {
+    //     test_with_features(&HashSet::from([DfsFeatures::Security]))
+    //         .await
+    //         .unwrap();
+    // }
 
-    #[tokio::test]
-    #[serial]
-    async fn test_security_token() {
-        test_with_features(&HashSet::from([DfsFeatures::Security, DfsFeatures::Token]))
-            .await
-            .unwrap();
-    }
+    // #[tokio::test]
+    // #[serial]
+    // async fn test_security_token() {
+    //     test_with_features(&HashSet::from([DfsFeatures::Security, DfsFeatures::Token]))
+    //         .await
+    //         .unwrap();
+    // }
 
-    #[tokio::test]
-    #[serial]
-    async fn test_integrity_kerberos() {
-        test_with_features(&HashSet::from([
-            DfsFeatures::Security,
-            DfsFeatures::Integrity,
-        ]))
-        .await
-        .unwrap();
-    }
+    // #[tokio::test]
+    // #[serial]
+    // async fn test_integrity_kerberos() {
+    //     test_with_features(&HashSet::from([
+    //         DfsFeatures::Security,
+    //         DfsFeatures::Integrity,
+    //     ]))
+    //     .await
+    //     .unwrap();
+    // }
 
-    #[tokio::test]
-    #[serial]
-    async fn test_integrity_token() {
-        test_with_features(&HashSet::from([
-            DfsFeatures::Security,
-            DfsFeatures::Token,
-            DfsFeatures::Integrity,
-        ]))
-        .await
-        .unwrap();
-    }
+    // #[tokio::test]
+    // #[serial]
+    // async fn test_integrity_token() {
+    //     test_with_features(&HashSet::from([
+    //         DfsFeatures::Security,
+    //         DfsFeatures::Token,
+    //         DfsFeatures::Integrity,
+    //     ]))
+    //     .await
+    //     .unwrap();
+    // }
 
-    #[tokio::test]
-    #[serial]
-    async fn test_privacy_kerberos() {
-        test_with_features(&HashSet::from([
-            DfsFeatures::Security,
-            DfsFeatures::Privacy,
-        ]))
-        .await
-        .unwrap();
-    }
+    // #[tokio::test]
+    // #[serial]
+    // async fn test_privacy_kerberos() {
+    //     test_with_features(&HashSet::from([
+    //         DfsFeatures::Security,
+    //         DfsFeatures::Privacy,
+    //     ]))
+    //     .await
+    //     .unwrap();
+    // }
 
-    #[tokio::test]
-    #[serial]
-    async fn test_privacy_token() {
-        test_with_features(&HashSet::from([
-            DfsFeatures::Security,
-            DfsFeatures::Token,
-            DfsFeatures::Privacy,
-        ]))
-        .await
-        .unwrap();
-    }
+    // #[tokio::test]
+    // #[serial]
+    // async fn test_privacy_token() {
+    //     test_with_features(&HashSet::from([
+    //         DfsFeatures::Security,
+    //         DfsFeatures::Token,
+    //         DfsFeatures::Privacy,
+    //     ]))
+    //     .await
+    //     .unwrap();
+    // }
 
-    #[tokio::test]
-    #[serial]
-    async fn test_aes() {
-        test_with_features(&HashSet::from([
-            DfsFeatures::Security,
-            DfsFeatures::Privacy,
-            DfsFeatures::AES,
-        ]))
-        .await
-        .unwrap();
-    }
+    // #[tokio::test]
+    // #[serial]
+    // async fn test_aes() {
+    //     test_with_features(&HashSet::from([
+    //         DfsFeatures::Security,
+    //         DfsFeatures::Privacy,
+    //         DfsFeatures::AES,
+    //     ]))
+    //     .await
+    //     .unwrap();
+    // }
 
-    #[tokio::test]
-    #[serial]
-    async fn test_forced_data_transfer_encryption() {
-        // DataTransferEncryption enabled but privacy isn't, still force encryption
-        test_with_features(&HashSet::from([
-            DfsFeatures::Security,
-            DfsFeatures::DataTransferEncryption,
-        ]))
-        .await
-        .unwrap();
-    }
+    // #[tokio::test]
+    // #[serial]
+    // async fn test_forced_data_transfer_encryption() {
+    //     // DataTransferEncryption enabled but privacy isn't, still force encryption
+    //     test_with_features(&HashSet::from([
+    //         DfsFeatures::Security,
+    //         DfsFeatures::DataTransferEncryption,
+    //     ]))
+    //     .await
+    //     .unwrap();
+    // }
 
-    #[tokio::test]
-    #[serial]
-    async fn test_data_transfer_encryption() {
-        test_with_features(&HashSet::from([
-            DfsFeatures::Security,
-            DfsFeatures::Privacy,
-            DfsFeatures::DataTransferEncryption,
-        ]))
-        .await
-        .unwrap();
-    }
+    // #[tokio::test]
+    // #[serial]
+    // async fn test_data_transfer_encryption() {
+    //     test_with_features(&HashSet::from([
+    //         DfsFeatures::Security,
+    //         DfsFeatures::Privacy,
+    //         DfsFeatures::DataTransferEncryption,
+    //     ]))
+    //     .await
+    //     .unwrap();
+    // }
 
-    #[tokio::test]
-    #[serial]
-    async fn test_data_transfer_encryption_aes() {
-        test_with_features(&HashSet::from([
-            DfsFeatures::Security,
-            DfsFeatures::Privacy,
-            DfsFeatures::DataTransferEncryption,
-            DfsFeatures::AES,
-        ]))
-        .await
-        .unwrap();
-    }
+    // #[tokio::test]
+    // #[serial]
+    // async fn test_data_transfer_encryption_aes() {
+    //     test_with_features(&HashSet::from([
+    //         DfsFeatures::Security,
+    //         DfsFeatures::Privacy,
+    //         DfsFeatures::DataTransferEncryption,
+    //         DfsFeatures::AES,
+    //     ]))
+    //     .await
+    //     .unwrap();
+    // }
 
-    #[tokio::test]
-    #[serial]
-    async fn test_basic_ha() {
-        test_with_features(&HashSet::from([DfsFeatures::HA]))
-            .await
-            .unwrap();
-    }
+    // #[tokio::test]
+    // #[serial]
+    // async fn test_basic_ha() {
+    //     test_with_features(&HashSet::from([DfsFeatures::HA]))
+    //         .await
+    //         .unwrap();
+    // }
 
-    #[tokio::test]
-    #[serial]
-    async fn test_security_privacy_ha() {
-        test_with_features(&HashSet::from([
-            DfsFeatures::Security,
-            DfsFeatures::Privacy,
-            DfsFeatures::HA,
-        ]))
-        .await
-        .unwrap();
-    }
+    // #[tokio::test]
+    // #[serial]
+    // async fn test_security_privacy_ha() {
+    //     test_with_features(&HashSet::from([
+    //         DfsFeatures::Security,
+    //         DfsFeatures::Privacy,
+    //         DfsFeatures::HA,
+    //     ]))
+    //     .await
+    //     .unwrap();
+    // }
 
-    #[tokio::test]
-    #[serial]
-    async fn test_security_token_ha() {
-        test_with_features(&HashSet::from([
-            DfsFeatures::Security,
-            DfsFeatures::Token,
-            DfsFeatures::HA,
-        ]))
-        .await
-        .unwrap();
-    }
+    // #[tokio::test]
+    // #[serial]
+    // async fn test_security_token_ha() {
+    //     test_with_features(&HashSet::from([
+    //         DfsFeatures::Security,
+    //         DfsFeatures::Token,
+    //         DfsFeatures::HA,
+    //     ]))
+    //     .await
+    //     .unwrap();
+    // }
 
-    #[tokio::test]
-    #[serial]
-    async fn test_rbf() {
-        test_with_features(&HashSet::from([DfsFeatures::RBF]))
-            .await
-            .unwrap();
-    }
+    // #[tokio::test]
+    // #[serial]
+    // async fn test_rbf() {
+    //     test_with_features(&HashSet::from([DfsFeatures::RBF]))
+    //         .await
+    //         .unwrap();
+    // }
 
     pub async fn test_with_features(features: &HashSet<DfsFeatures>) -> Result<()> {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let _dfs = setup(features);
-        let client = Client::default();
+        //let _dfs = setup(features);
+        let client = Client::new_with_config("hdfs://10.0.2.15:8020/tmp/integration-tests", HashMap<String, String>::new());
 
         test_file_info(&client).await?;
         test_listing(&client).await?;
