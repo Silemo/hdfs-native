@@ -7,7 +7,7 @@ mod test {
     use bytes::{BufMut, BytesMut};
     use hdfs_native::{client::FileStatus, minidfs::DfsFeatures, Client, Result, WriteOptions};
     use serial_test::serial;
-    use std::collections::HashSet;
+    use std::collections::{HashSet, HashMap};
 
     #[tokio::test]
     #[serial]
@@ -170,7 +170,8 @@ mod test {
         let _ = env_logger::builder().is_test(true).try_init();
 
         //let _dfs = setup(features);
-        let client = Client::new_with_config("hdfs://10.0.2.15:8020/tmp/integration-tests", HashMap<String, String>::new());
+        let mut config: HashMap<String, String> = HashMap::new();
+        let client = Client::new_with_config("hdfs://10.0.2.15:8020/tmp/integration-tests", config).unwrap();
 
         test_file_info(&client).await?;
         test_listing(&client).await?;
