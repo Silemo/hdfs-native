@@ -18,6 +18,7 @@ use tokio::{
     net::TcpStream,
     task::{self, JoinHandle},
 };
+use tokio_rustls::client::TlsStream;
 use uuid::Uuid;
 
 use crate::proto::common::rpc_response_header_proto::RpcStatusProto;
@@ -49,6 +50,66 @@ async fn connect(addr: &str) -> Result<TcpStream> {
     sf.set_keepalive(true)?;
 
     Ok(stream)
+}
+
+// Connect to a remote host and return a TcpStream with standard options we want
+async fn connect_tls(addr: &str, options: Options) -> Result<TcpStream> {
+    // Create where to store the certificate
+    let mut root_cert_store = rustls::RootCertStore::empty();
+    // Giving CA file directory
+    let cafile = PathBuf::from("/srv/hops/super_crypto/hdfs/hops_root_ca.pem");
+    // Read the PEM file
+    let mut pem = BufReader::new(File::open(cafile)?);
+    for cert in rustls_pemfile::certs(&mut pem) {
+        root_cert_store.add(cert?).unwrap();
+
+    let cert_chain = load_certs("/srv/hops/super_crypto/hdfs/hdfs_certificate_bundle.pem");
+    let key_der = load_private_key("/srv/hops/super_crypto/hdfs/hdfs_priv.pem");
+    let config = rustls::ClientConfig::builder()
+        .with_root_certificates(root_cert_store)
+        .with_client_auth_cert(cert_chain, key_der);
+    
+    config.key_log = Arc::new(rustls::KeyLogFile::new());
+
+    let connector = TlsConnector::from(Arc::new(config));
+
+    let domain = pki_types::ServerName::try_from(addr.as_str())
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid dnsname"))?
+        .to_owned();
+
+    let stream = connect(&addr).await?;
+
+    let mut stream = connector.connect(domain, stream).await?;
+
+    Ok(stream)
+}
+
+fn load_certs(filename: &str) -> Vec<CertificateDer<'static>> {
+    let certfile = fs::File::open(filename).expect("cannot open certificate file");
+    let mut reader = BufReader::new(certfile);
+    rustls_pemfile::certs(&mut reader)
+        .map(|result| result.unwrap())
+        .collect()
+}
+
+fn load_private_key(filename: &str) -> PrivateKeyDer<'static> {
+    let keyfile = fs::File::open(filename).expect("cannot open private key file");
+    let mut reader = BufReader::new(keyfile);
+
+    loop {
+        match rustls_pemfile::read_one(&mut reader).expect("cannot parse private key .pem file") {
+            Some(rustls_pemfile::Item::Pkcs1Key(key)) => return key.into(),
+            Some(rustls_pemfile::Item::Pkcs8Key(key)) => return key.into(),
+            Some(rustls_pemfile::Item::Sec1Key(key)) => return key.into(),
+            None => break,
+            _ => {}
+        }
+    }
+
+    panic!(
+        "no keys found in {:?} (encrypted keys not supported)",
+        filename
+    );
 }
 
 #[derive(Debug)]

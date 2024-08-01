@@ -39,6 +39,7 @@ roxmltree = "0.18"
 socket2 = "0.5"
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "net", "io-util", "macros", "sync", "time"] }
+tokio_rustls = {version = "0.26"}
 url = "2"
 uuid = { version = "1", features = ["v4"] }
 which = { version = "4", optional = true }
