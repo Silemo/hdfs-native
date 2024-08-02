@@ -47,6 +47,10 @@ pub enum HdfsError {
     GSSAPIError(crate::security::gssapi::GssMajorCodes, u32, String),
     #[error("No valid SASL mechanism found")]
     NoSASLMechanism,
+    #[error("TLS Error: Client config created incorrectly ")]
+    TLSClientConfigError,
+    #[error("TLS Error: DNS name invalid")]
+    TLSDNSInvalidError,
 }
 
 pub type Result<T> = std::result::Result<T, HdfsError>;
