@@ -43,54 +43,60 @@ const DATANODE_CACHE_EXPIRY: TimeDelta = TimeDelta::seconds(3);
 const CRC32: Crc<u32, Table<16>> = Crc::<u32, Table<16>>::new(&CRC_32_CKSUM);
 const CRC32C: Crc<u32, Table<16>> = Crc::<u32, Table<16>>::new(&CRC_32_ISCSI);
 
-pub(crate) static DATANODE_CACHE: Lazy<DatanodeConnectionCache> =
+pub(crate) static DATANODE_CACHE: Lazy<DatanodeConnectionCache<T>> =
     Lazy::new(DatanodeConnectionCache::new);
 
-// Connect to a remote host and return a TcpStream with standard options we want
-async fn connect(addr: &str) -> Result<TcpStream> {
-    let stream = TcpStream::connect(addr).await?;
-    stream.set_nodelay(true)?;
-
-    let sf = SockRef::from(&stream);
-    sf.set_keepalive(true)?;
-
-    Ok(stream)
+pub trait NameNodeConnection<T> {
+    async fn connect_nn(addr: &str) -> Result<T> ;
 }
 
-// Connect to a remote host and return a TcpStream with standard options we want
-async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
-    // Create where to store the certificate
-    let mut root_cert_store = RootCertStore::empty();
-    // Giving CA file directory
-    let cafile = PathBuf::from("/srv/hops/super_crypto/hdfs/hops_root_ca.pem");
-    // Read the PEM file
-    let mut pem = BufReader::new(File::open(cafile)?);
-    for cert in rustls_pemfile::certs(&mut pem) {
-        root_cert_store.add(cert?).unwrap();
+impl NameNodeConnection<TcpStream> for TcpStream {
+    async fn connect_nn(addr: &str) -> Result<TcpStream> {
+        let stream = TcpStream::connect(addr).await?;
+        stream.set_nodelay(true)?;
+
+        let sf = SockRef::from(&stream);
+        sf.set_keepalive(true)?;
+
+        Ok(stream)
     }
-    let cert_chain = load_certs("/srv/hops/super_crypto/hdfs/hdfs_certificate_bundle.pem");
-    let key_der = load_private_key("/srv/hops/super_crypto/hdfs/hdfs_priv.pem");
-    let mut config = match ClientConfig::builder()
-        .with_root_certificates(root_cert_store)
-        .with_client_auth_cert(cert_chain, key_der) {
-            Ok(config) => config,
-            Err(_) => return Err(HdfsError::TLSClientConfigError),
-    };
-    
-    config.key_log = Arc::new(rustls::KeyLogFile::new());
+}
 
-    let connector = TlsConnector::from(Arc::new(config));
+impl NameNodeConnection<TlsStream<TcpStream>> for TlsStream<TcpStream> {
+    async fn connect_nn(addr: &str) -> Result<TlsStream<TcpStream>> {
+        // Create where to store the certificate
+        let mut root_cert_store = RootCertStore::empty();
+        // Giving CA file directory
+        let cafile = PathBuf::from("/srv/hops/super_crypto/hdfs/hops_root_ca.pem");
+        // Read the PEM file
+        let mut pem = BufReader::new(File::open(cafile)?);
+        for cert in rustls_pemfile::certs(&mut pem) {
+            root_cert_store.add(cert?).unwrap();
+        }
+        let cert_chain = load_certs("/srv/hops/super_crypto/hdfs/hdfs_certificate_bundle.pem");
+        let key_der = load_private_key("/srv/hops/super_crypto/hdfs/hdfs_priv.pem");
+        let mut config = match ClientConfig::builder()
+            .with_root_certificates(root_cert_store)
+            .with_client_auth_cert(cert_chain, key_der) {
+                Ok(config) => config,
+                Err(_) => return Err(HdfsError::TLSClientConfigError),
+        };
+        
+        config.key_log = Arc::new(rustls::KeyLogFile::new());
 
-    let domain = match ServerName::try_from(addr.to_string()) {
-        Ok(domain) => domain,
-        Err(_) => return Err(HdfsError::TLSDNSInvalidError),
-    };
+        let connector = TlsConnector::from(Arc::new(config));
 
-    let stream = connect(&addr).await?;
+        let domain = match ServerName::try_from(addr.to_string()) {
+            Ok(domain) => domain,
+            Err(_) => return Err(HdfsError::TLSDNSInvalidError),
+        };
 
-    let stream = connector.connect(domain, stream).await?;
+        let stream = TcpStream::connect_nn(&addr).await?;
 
-    Ok(stream)
+        let stream = connector.connect(domain, stream).await?;
+
+        Ok(stream)
+    }
 }
 
 fn load_certs(filename: &str) -> Vec<CertificateDer<'static>> {
@@ -193,7 +199,7 @@ pub(crate) struct RpcConnection {
     listener: Option<JoinHandle<()>>,
 }
 
-impl RpcConnection {
+impl<T> RpcConnection {
     pub(crate) async fn connect(
         url: &str,
         alignment_context: Arc<Mutex<AlignmentContext>>,
@@ -204,7 +210,7 @@ impl RpcConnection {
         let next_call_id = AtomicI32::new(0);
         let call_map = Arc::new(Mutex::new(HashMap::new()));
 
-        let mut stream = connect(url).await?;
+        let mut stream = TlsStream::connect_nn(url).await?;
         stream.write_all("hrpc".as_bytes()).await?;
         // Current version
         stream.write_all(&[9u8]).await?;
@@ -248,7 +254,7 @@ impl RpcConnection {
         Ok(conn)
     }
 
-    fn start_sender(&mut self, mut rx: mpsc::Receiver<Vec<u8>>, mut writer: SaslWriter) {
+    fn start_sender(&mut self, mut rx: mpsc::Receiver<Vec<u8>>, mut writer: SaslWriter<T>) {
         print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection start_sender()\n");
         task::spawn(async move {
             while let Some(msg) = rx.recv().await {
@@ -260,7 +266,7 @@ impl RpcConnection {
         });
     }
 
-    fn start_listener(&mut self, reader: SaslReader) -> Result<JoinHandle<()>> {
+    fn start_listener(&mut self, reader: SaslReader<T>) -> Result<JoinHandle<()>> {
         print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection start_listener()\n");
         let call_map = Arc::clone(&self.call_map);
         let alignment_context = self.alignment_context.clone();
@@ -372,17 +378,17 @@ impl RpcConnection {
     }
 }
 
-struct RpcListener {
+struct RpcListener<T> {
     call_map: Arc<Mutex<HashMap<i32, CallResult>>>,
-    reader: SaslReader,
+    reader: SaslReader<T>,
     alive: bool,
     alignment_context: Arc<Mutex<AlignmentContext>>,
 }
 
-impl RpcListener {
+impl<T> RpcListener<T> {
     fn new(
         call_map: Arc<Mutex<HashMap<i32, CallResult>>>,
-        reader: SaslReader,
+        reader: SaslReader<T>,
         alignment_context: Arc<Mutex<AlignmentContext>>,
     ) -> Self {
         print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener new()\n");
@@ -612,14 +618,14 @@ impl Packet {
     }
 }
 
-pub(crate) struct DatanodeConnection {
+pub(crate) struct DatanodeConnection<T> {
     client_name: String,
-    reader: SaslDatanodeReader,
-    writer: SaslDatanodeWriter,
+    reader: SaslDatanodeReader<T>,
+    writer: SaslDatanodeWriter<T>,
     url: String,
 }
 
-impl DatanodeConnection {
+impl<T> DatanodeConnection<T> {
     pub(crate) async fn connect(
         datanode_id: &DatanodeIdProto,
         token: &TokenProto,
@@ -627,7 +633,7 @@ impl DatanodeConnection {
     ) -> Result<Self> {
         print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection connect()\n");
         let url = format!("{}:{}", datanode_id.ip_addr, datanode_id.xfer_port);
-        let stream = connect(&url).await?;
+        let stream = TlsStream::connect(&url).await?;
 
         let sasl_connection = SaslDatanodeConnection::create(stream);
         let (reader, writer) = sasl_connection
@@ -719,7 +725,7 @@ impl DatanodeConnection {
         Ok(())
     }
 
-    pub(crate) fn split(self) -> (DatanodeReader, DatanodeWriter) {
+    pub(crate) fn split(self) -> (DatanodeReader<T>, DatanodeWriter<T>) {
         print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection split()\n");
         let reader = DatanodeReader {
             reader: self.reader,
@@ -733,11 +739,11 @@ impl DatanodeConnection {
 
 /// A reader half of a Datanode connection used for reading acks during
 /// write operations.
-pub(crate) struct DatanodeReader {
-    reader: SaslDatanodeReader,
+pub(crate) struct DatanodeReader<T> {
+    reader: SaslDatanodeReader<T>,
 }
 
-impl DatanodeReader {
+impl<T> DatanodeReader<T> {
     pub(crate) async fn read_ack(&mut self) -> Result<hdfs::PipelineAckProto> {
         print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeReader ack()\n");
         let message = self.reader.read_proto().await?;
@@ -748,11 +754,11 @@ impl DatanodeReader {
 }
 
 /// A write half of a Datanode connection used for writing packets.
-pub(crate) struct DatanodeWriter {
-    writer: SaslDatanodeWriter,
+pub(crate) struct DatanodeWriter<T> {
+    writer: SaslDatanodeWriter<T>,
 }
 
-impl DatanodeWriter {
+impl<T> DatanodeWriter<T> {
     /// Create a buffer to send to the datanode
     pub(crate) async fn write_packet(&mut self, packet: &mut Packet) -> Result<()> {
         print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeWriter write_packet()\n");
@@ -774,20 +780,20 @@ impl DatanodeWriter {
     }
 }
 
-type DatanodeConnectionCacheEntry = VecDeque<(DateTime<Utc>, DatanodeConnection)>;
+type DatanodeConnectionCacheEntry<T> = VecDeque<(DateTime<Utc>, DatanodeConnection<T>)>;
 
-pub(crate) struct DatanodeConnectionCache {
-    cache: Mutex<HashMap<String, DatanodeConnectionCacheEntry>>,
+pub(crate) struct DatanodeConnectionCache<T> {
+    cache: Mutex<HashMap<String, DatanodeConnectionCacheEntry<T>>>,
 }
 
-impl DatanodeConnectionCache {
+impl<T> DatanodeConnectionCache<T> {
     fn new() -> Self {
         Self {
             cache: Mutex::new(HashMap::new()),
         }
     }
 
-    pub(crate) fn get(&self, datanode_id: &hdfs::DatanodeIdProto) -> Option<DatanodeConnection> {
+    pub(crate) fn get(&self, datanode_id: &hdfs::DatanodeIdProto) -> Option<DatanodeConnection<T>> {
         // Keep things simply and just expire cache entries when checking the cache. We could
         // move this to its own task but that will add a little more complexity.
         print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnectionCache get()\n");
@@ -804,7 +810,7 @@ impl DatanodeConnectionCache {
             .next()
     }
 
-    pub(crate) fn release(&self, conn: DatanodeConnection) {
+    pub(crate) fn release(&self, conn: DatanodeConnection<T>) {
         print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnectionCache release()\n");
         let expire_at = Utc::now() + DATANODE_CACHE_EXPIRY;
         let mut cache = self.cache.lock().unwrap();
