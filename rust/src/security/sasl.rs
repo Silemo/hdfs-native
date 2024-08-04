@@ -62,14 +62,14 @@ pub(crate) trait SaslSession: Send + Sync {
     fn get_user_info(&self) -> Result<UserInfo>;
 }
 
-pub struct SaslRpcClient {
-    reader: SaslReader,
-    writer: SaslWriter,
+pub struct SaslRpcClient<T> {
+    reader: SaslReader<T>,
+    writer: SaslWriter<T>,
     session: Option<Arc<Mutex<Box<dyn SaslSession>>>>,
 }
 
-impl SaslRpcClient {
-    pub fn create<T: NameNodeConnection<T> + AsyncWrite + AsyncRead>(stream: T) -> SaslRpcClient {
+impl<T> SaslRpcClient<T> {
+    pub fn create<U: NameNodeConnection + AsyncWrite + AsyncRead>(stream: U) -> SaslRpcClient<T> {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslRpcClient create()\n");
         let (reader, writer) = split(stream);
         SaslRpcClient {
@@ -210,7 +210,7 @@ impl SaslRpcClient {
         Err(HdfsError::NoSASLMechanism)
     }
 
-    pub(crate) fn split(self) -> (SaslReader, SaslWriter) {
+    pub(crate) fn split(self) -> (SaslReader<T>, SaslWriter<T>) {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslRpcClient split()\n");
         let mut reader = self.reader;
         let mut writer = self.writer;

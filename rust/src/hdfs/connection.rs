@@ -46,11 +46,11 @@ const CRC32C: Crc<u32, Table<16>> = Crc::<u32, Table<16>>::new(&CRC_32_ISCSI);
 pub(crate) static DATANODE_CACHE: Lazy<DatanodeConnectionCache<T>> =
     Lazy::new(DatanodeConnectionCache::new);
 
-pub trait NameNodeConnection<T> {
-    async fn connect_nn(addr: &str) -> Result<T> ;
+pub trait NameNodeConnection {
+    async fn connect_nn(addr: &str) -> Result<Self> ;
 }
 
-impl NameNodeConnection<TcpStream> for TcpStream {
+impl NameNodeConnection for TcpStream {
     async fn connect_nn(addr: &str) -> Result<TcpStream> {
         let stream = TcpStream::connect(addr).await?;
         stream.set_nodelay(true)?;
@@ -62,7 +62,7 @@ impl NameNodeConnection<TcpStream> for TcpStream {
     }
 }
 
-impl NameNodeConnection<TlsStream<TcpStream>> for TlsStream<TcpStream> {
+impl NameNodeConnection for TlsStream<TcpStream> {
     async fn connect_nn(addr: &str) -> Result<TlsStream<TcpStream>> {
         // Create where to store the certificate
         let mut root_cert_store = RootCertStore::empty();
