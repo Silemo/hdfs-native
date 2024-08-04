@@ -2,11 +2,16 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use cipher::{KeyIvInit, StreamCipher};
 use log::{debug, warn};
 use prost::Message;
+use std::io;
 use std::sync::{Arc, Mutex};
-use tokio::io::{split, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, BufStream, ReadHalf, WriteHalf};
+use tokio::io::BufReader;
+use tokio::{
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufStream},
+    net::tcp::{OwnedReadHalf, OwnedWriteHalf},
+    net::TcpStream,
+};
 
 use super::user::BlockTokenIdentifier;
-use crate::hdfs::connection::NameNodeConnection;
 use crate::proto::hdfs::{CipherOptionProto, CipherSuiteProto, DataEncryptionKeyProto};
 use crate::proto::{
     common::{
@@ -69,9 +74,9 @@ pub struct SaslRpcClient {
 }
 
 impl SaslRpcClient {
-    pub fn create<T: NameNodeConnection<T> + AsyncWrite + AsyncRead>(stream: T) -> SaslRpcClient {
+    pub fn create(stream: TcpStream) -> SaslRpcClient {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslRpcClient create()\n");
-        let (reader, writer) = split(stream);
+        let (reader, writer) = stream.into_split();
         SaslRpcClient {
             reader: SaslReader::new(reader),
             writer: SaslWriter::new(writer),
@@ -222,14 +227,14 @@ impl SaslRpcClient {
     }
 }
 
-pub(crate) struct SaslReader<T> {
-    stream: ReadHalf<T>,
+pub(crate) struct SaslReader {
+    stream: OwnedReadHalf,
     session: Option<Arc<Mutex<Box<dyn SaslSession>>>>,
     buffer: Bytes,
 }
 
-impl<T> SaslReader<T> {
-    fn new(stream: ReadHalf<T>) -> Self {
+impl SaslReader {
+    fn new(stream: OwnedReadHalf) -> Self {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslReader new()\n");
         SaslReader {
             stream,
@@ -318,13 +323,13 @@ impl<T> SaslReader<T> {
     }
 }
 
-pub(crate) struct SaslWriter<T> {
-    stream: WriteHalf<T>,
+pub(crate) struct SaslWriter {
+    stream: OwnedWriteHalf,
     session: Option<Arc<Mutex<Box<dyn SaslSession>>>>,
 }
 
-impl<T> SaslWriter<T> {
-    fn new(stream: WriteHalf<T>) -> Self {
+impl SaslWriter {
+    fn new(stream: OwnedWriteHalf) -> Self {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslWriter new()\n");
         SaslWriter {
             stream,
@@ -392,7 +397,7 @@ impl<T> SaslWriter<T> {
     }
 }
 
-impl<T> std::fmt::Debug for SaslWriter<T> {
+impl std::fmt::Debug for SaslWriter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslWriter fmt()\n");
         f.debug_struct("SaslWriter")
@@ -408,8 +413,8 @@ struct SaslDecryptor {
     data_buffer: Bytes,
 }
 
-impl<T> SaslDecryptor {
-    async fn read_more_data(&mut self, stream: &mut BufReader<ReadHalf<T>>) -> Result<()> {
+impl SaslDecryptor {
+    async fn read_more_data(&mut self, stream: &mut BufReader<OwnedReadHalf>) -> Result<()> {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslDecryptor read_more_data()\n");
         stream.read_exact(&mut self.size_buffer).await?;
         let msg_length = u32::from_be_bytes(self.size_buffer) as usize;
@@ -439,13 +444,13 @@ enum DatanodeDecryptor {
     Cipher(Box<dyn StreamCipher + Send>),
 }
 
-pub(crate) struct SaslDatanodeReader<T> {
-    stream: BufReader<ReadHalf<T>>,
+pub(crate) struct SaslDatanodeReader {
+    stream: BufReader<OwnedReadHalf>,
     decryptor: Option<DatanodeDecryptor>,
 }
 
-impl<T> SaslDatanodeReader<T> {
-    fn unencrypted(stream: ReadHalf<T>) -> Self {
+impl SaslDatanodeReader {
+    fn unencrypted(stream: OwnedReadHalf) -> Self {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslDatanodeReader unencrypted()\n");
         Self {
             stream: BufReader::new(stream),
@@ -453,7 +458,7 @@ impl<T> SaslDatanodeReader<T> {
         }
     }
 
-    fn sasl(stream: ReadHalf<T>, session: Arc<Mutex<DigestSaslSession>>) -> Self {
+    fn sasl(stream: OwnedReadHalf, session: Arc<Mutex<DigestSaslSession>>) -> Self {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslDatanodeReader sasl()\n");
         let decryptor = SaslDecryptor {
             session,
@@ -467,7 +472,7 @@ impl<T> SaslDatanodeReader<T> {
         }
     }
 
-    fn cipher(stream: ReadHalf<T>, cipher: Box<dyn StreamCipher + Send>) -> Self {
+    fn cipher(stream: OwnedReadHalf, cipher: Box<dyn StreamCipher + Send>) -> Self {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslDatanodeReader cipher()\n");
         Self {
             stream: BufReader::new(stream),
@@ -566,13 +571,13 @@ enum DatanodeEncryptor {
     Cipher(Box<dyn StreamCipher + Send>),
 }
 
-pub(crate) struct SaslDatanodeWriter<T> {
-    stream: WriteHalf<T>,
+pub(crate) struct SaslDatanodeWriter {
+    stream: OwnedWriteHalf,
     encryptor: Option<DatanodeEncryptor>,
 }
 
-impl<T> SaslDatanodeWriter<T> {
-    fn unencrypted(stream: WriteHalf<T>) -> Self {
+impl SaslDatanodeWriter {
+    fn unencrypted(stream: OwnedWriteHalf) -> Self {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslDatanodeWriter unencrypted()\n");
         Self {
             stream,
@@ -580,7 +585,7 @@ impl<T> SaslDatanodeWriter<T> {
         }
     }
 
-    fn sasl(stream: WriteHalf<T>, session: Arc<Mutex<DigestSaslSession>>) -> Self {
+    fn sasl(stream: OwnedWriteHalf, session: Arc<Mutex<DigestSaslSession>>) -> Self {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslDatanodeWriter sasl()\n");
         Self {
             stream,
@@ -588,7 +593,7 @@ impl<T> SaslDatanodeWriter<T> {
         }
     }
 
-    fn cipher(stream: WriteHalf<T>, cipher: Box<dyn StreamCipher + Send>) -> Self {
+    fn cipher(stream: OwnedWriteHalf, cipher: Box<dyn StreamCipher + Send>) -> Self {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslDatanodeWriter cipher()\n");
         Self {
             stream,
@@ -622,12 +627,12 @@ impl<T> SaslDatanodeWriter<T> {
     }
 }
 
-pub(crate) struct SaslDatanodeConnection<T> {
-    stream: BufStream<T>,
+pub(crate) struct SaslDatanodeConnection {
+    stream: BufStream<TcpStream>,
 }
 
-impl<T> SaslDatanodeConnection<T> {
-    pub fn create(stream: BufStream<T>) -> Self {
+impl SaslDatanodeConnection {
+    pub fn create(stream: TcpStream) -> Self {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslDatanodeConnection create()\n");
         Self {
             stream: BufStream::new(stream),
@@ -650,7 +655,7 @@ impl<T> SaslDatanodeConnection<T> {
         datanode_id: &DatanodeIdProto,
         token: &TokenProto,
         encryption_key: Option<&DataEncryptionKeyProto>,
-    ) -> Result<(SaslDatanodeReader<T>, SaslDatanodeWriter<T>)> {
+    ) -> Result<(SaslDatanodeReader, SaslDatanodeWriter)> {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslDatanodeConnection negotiate()\n");
         let mut session = if let Some(key) = encryption_key {
             DigestSaslSession::from_encryption_key("hdfs".to_string(), "0".to_string(), key)
@@ -757,7 +762,7 @@ impl<T> SaslDatanodeConnection<T> {
         self,
         session: Option<DigestSaslSession>,
         cipher_option: Option<&CipherOptionProto>,
-    ) -> Result<(SaslDatanodeReader<T>, SaslDatanodeWriter<T>)> {
+    ) -> Result<(SaslDatanodeReader, SaslDatanodeWriter)> {
         print!("DBG: HDFS-NATIVE security/sasl.rs SaslDatanodeConnection split()\n");
         let (stream_reader, stream_writer) = self.stream.into_inner().into_split();
         if let Some(cipher) = cipher_option {
