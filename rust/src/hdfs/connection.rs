@@ -10,7 +10,7 @@ use std::sync::Mutex;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use chrono::{prelude::*, TimeDelta};
 use crc::{Crc, Table, CRC_32_CKSUM, CRC_32_ISCSI};
-use log::{debug, warn};
+use log::warn;
 use once_cell::sync::Lazy;
 use prost::Message;
 use socket2::SockRef;
@@ -20,7 +20,7 @@ use tokio::{
     net::TcpStream,
     task::{self, JoinHandle},
 };
-use tokio_rustls::rustls::{RootCertStore, ClientConfig, version::TLS12};
+use tokio_rustls::rustls::{RootCertStore, ClientConfig};
 use tokio_rustls::rustls::pki_types::{ServerName, CertificateDer, PrivateKeyDer};
 use tokio_rustls::client::TlsStream;
 use tokio_rustls::TlsConnector;
@@ -61,15 +61,15 @@ async fn connect(addr: &str) -> Result<TcpStream> {
 async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
     // Create where to store the certificate
     let mut root_cert_store = RootCertStore::empty();
-    // Giving CA file directory
+    // All Certificates and key directory
     let cafile = PathBuf::from("/srv/hopsworks-data/super_crypto/hdfs/hops_root_ca.pem");
+    let cert_chain = load_certs("/srv/hops/super_crypto/hdfs/hdfs_certificate_bundle.pem");
+    let key_der = load_private_key("/srv/hops/super_crypto/hdfs/hdfs_priv.pem");
     // Read the PEM file
     let mut pem = BufReader::new(File::open(cafile)?);
     for cert in rustls_pemfile::certs(&mut pem) {
         root_cert_store.add(cert?).unwrap();
     }
-    let cert_chain = load_certs("/srv/hops/super_crypto/hdfs/hdfs_certificate_bundle.pem");
-    let key_der = load_private_key("/srv/hops/super_crypto/hdfs/hdfs_priv.pem");
     let mut config = match ClientConfig::builder()
         .with_root_certificates(root_cert_store)
         .with_client_auth_cert(cert_chain, key_der) {
@@ -88,9 +88,9 @@ async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
         Err(_) => return Err(HdfsError::TLSDNSInvalidError),
     };
     print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() Before creating TCP connection \n");
-    let stream = connect(&addr).await?;
+    let stream1 = connect(&addr).await?;
     print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() SUCCESS TCP connection \n");
-    let stream = connector.connect(domain, stream).await?;
+    let stream = connector.connect(domain, stream1).await?;
     print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() SUCCESS TLS connection \n");
 
     Ok(stream)
@@ -211,14 +211,9 @@ impl RpcConnection {
         let call_map = Arc::new(Mutex::new(HashMap::new()));
 
         let mut stream = connect_tls(url).await?;
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs - RpcConnection SUCCESS CONNECT \n");
-        stream.write_all("hrpc".as_bytes()).await?;
-        // Current version
-        stream.write_all(&[9u8]).await?;
-        // Service class
-        stream.write_all(&[0u8]).await?;
-        // Auth protocol
-        stream.write_all(&(-33i8).to_be_bytes()).await?;
+        print!("-----> DBG: HDFS-NATIVE hdfs/connection.rs - RpcConnection SUCCESS CONNECT \n");
+        let message:[u8;7] = [0x68, 0x72, 0x70, 0x63/*hrpc*/, 0x09/*version*/, 0x00 /*service class*/, 0xDF /*auth protocol*/ ] ;
+        stream.write_all(&message[..]).await?;
 
         let mut client = SaslRpcClient::create(stream);
 

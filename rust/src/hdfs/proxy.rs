@@ -1,17 +1,15 @@
 use std::sync::{
-    atomic::{AtomicBool, AtomicUsize, Ordering},
+    atomic::{AtomicUsize, Ordering},
     Arc, Mutex,
 };
 
 use bytes::Bytes;
 use log::warn;
-use prost::Message;
 use url::Url;
 
 use crate::{
     common::config::Configuration,
     hdfs::connection::{AlignmentContext, RpcConnection},
-    proto::hdfs,
     HdfsError, Result,
 };
 

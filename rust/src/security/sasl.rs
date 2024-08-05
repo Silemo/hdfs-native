@@ -90,7 +90,8 @@ impl SaslRpcClient {
         };
 
         self.writer.send_sasl_message(&rpc_sasl).await?;
-
+        
+        print!("DBG: HDFS-NATIVE security/sasl.rs SaslRpcClient negotiate() Version {:?}\n", rpc_sasl);
         let mut done = false;
         let mut session: Option<Box<dyn SaslSession>> = None;
         while !done {
