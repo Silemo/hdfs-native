@@ -80,8 +80,10 @@ async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
     config.key_log = Arc::new(rustls::KeyLogFile::new());
 
     let connector = TlsConnector::from(Arc::new(config));
-
-    let domain = match ServerName::try_from(addr.to_string()) {
+    print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() addr: {}\n", addr);
+    let (server_name, _port) = addr.split_once(':').unwrap();
+    print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() server_name: {}\n", server_name);
+    let domain = match ServerName::try_from(server_name.to_string()) {
         Ok(domain) => domain,
         Err(_) => return Err(HdfsError::TLSDNSInvalidError),
     };
@@ -205,6 +207,7 @@ impl RpcConnection {
         let call_map = Arc::new(Mutex::new(HashMap::new()));
 
         let mut stream = connect_tls(url).await?;
+        print!("DBG: HDFS-NATIVE hdfs/connection.rs - RpcConnection SUCCESS CONNECT \n");
         stream.write_all("hrpc".as_bytes()).await?;
         // Current version
         stream.write_all(&[9u8]).await?;
@@ -627,7 +630,7 @@ impl DatanodeConnection {
     ) -> Result<Self> {
         print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection connect()\n");
         let url = format!("{}:{}", datanode_id.ip_addr, datanode_id.xfer_port);
-        let stream = connect(&url).await?;
+        let stream = connect_tls(&url).await?;
 
         let sasl_connection = SaslDatanodeConnection::create(stream);
         let (reader, writer) = sasl_connection
