@@ -20,7 +20,7 @@ use tokio::{
     net::TcpStream,
     task::{self, JoinHandle},
 };
-use tokio_rustls::rustls::{RootCertStore, ClientConfig};
+use tokio_rustls::rustls::{RootCertStore, ClientConfig, version::TLS12};
 use tokio_rustls::rustls::pki_types::{ServerName, CertificateDer, PrivateKeyDer};
 use tokio_rustls::client::TlsStream;
 use tokio_rustls::TlsConnector;
@@ -62,7 +62,7 @@ async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
     // Create where to store the certificate
     let mut root_cert_store = RootCertStore::empty();
     // Giving CA file directory
-    let cafile = PathBuf::from("/srv/hops/super_crypto/hdfs/hops_root_ca.pem");
+    let cafile = PathBuf::from("/home/hdfs/backup/hopsfs-deltalake/keys/rootCA.crt");
     // Read the PEM file
     let mut pem = BufReader::new(File::open(cafile)?);
     for cert in rustls_pemfile::certs(&mut pem) {
@@ -87,17 +87,21 @@ async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
         Ok(domain) => domain,
         Err(_) => return Err(HdfsError::TLSDNSInvalidError),
     };
-
+    print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() Before creating TCP connection \n");
     let stream = connect(&addr).await?;
-
+    print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() SUCCESS TCP connection \n");
     let stream = connector.connect(domain, stream).await?;
+    print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() SUCCESS TLS connection \n");
 
     Ok(stream)
 }
 
 fn load_certs(filename: &str) -> Vec<CertificateDer<'static>> {
+    print!("DBG: HDFS-NATIVE hdfs/connection.rs - load_certs() before opening file \n");
     let certfile = File::open(filename).expect("cannot open certificate file");
+    print!("DBG: HDFS-NATIVE hdfs/connection.rs - load_certs() after opening file \n");
     let mut reader = BufReader::new(certfile);
+    print!("DBG: HDFS-NATIVE hdfs/connection.rs - load_certs() after BufReader \n");
     rustls_pemfile::certs(&mut reader)
         .map(|result| result.unwrap())
         .collect()
