@@ -173,7 +173,7 @@ mod test {
         //let _dfs = setup(features);
         let mut config: HashMap<String, String> = HashMap::new();
         
-        let client = Client::new_with_config("hdfs://10.0.2.15:8020/tmp/integration-tests", config).unwrap();
+        let client = Client::new_with_config("hdfs://rpc.namenode.service.consul:8020/tmp/integration-tests", config).unwrap();
         print!("DBG: HDFS-NATIVE TESTS - test_with_features - After config\n ");
         test_file_info(&client).await?;
         print!("DBG: HDFS-NATIVE TESTS - test_with_features - After file_info\n ");

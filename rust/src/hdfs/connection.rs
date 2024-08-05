@@ -62,7 +62,7 @@ async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
     // Create where to store the certificate
     let mut root_cert_store = RootCertStore::empty();
     // Giving CA file directory
-    let cafile = PathBuf::from("/home/hdfs/backup/hopsfs-deltalake/keys/rootCA.crt");
+    let cafile = PathBuf::from("/srv/hopsworks-data/super_crypto/hdfs/hops_root_ca.pem");
     // Read the PEM file
     let mut pem = BufReader::new(File::open(cafile)?);
     for cert in rustls_pemfile::certs(&mut pem) {
@@ -634,7 +634,7 @@ impl DatanodeConnection {
     ) -> Result<Self> {
         print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection connect()\n");
         let url = format!("{}:{}", datanode_id.ip_addr, datanode_id.xfer_port);
-        let stream = connect_tls(&url).await?;
+        let stream = connect(&url).await?;
 
         let sasl_connection = SaslDatanodeConnection::create(stream);
         let (reader, writer) = sasl_connection
