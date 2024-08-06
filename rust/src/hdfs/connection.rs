@@ -20,8 +20,9 @@ use tokio::{
     net::TcpStream,
     task::{self, JoinHandle},
 };
-use tokio_rustls::rustls::{RootCertStore, ClientConfig};
+use tokio_rustls::rustls::{RootCertStore, ClientConfig, KeyLogFile, DEFAULT_VERSIONS};
 use tokio_rustls::rustls::pki_types::{ServerName, CertificateDer, PrivateKeyDer};
+use tokio_rustls::rustls::crypto::{aws_lc_rs as provider, CryptoProvider};
 use tokio_rustls::client::TlsStream;
 use tokio_rustls::TlsConnector;
 use uuid::Uuid;
@@ -70,14 +71,25 @@ async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
     for cert in rustls_pemfile::certs(&mut pem) {
         root_cert_store.add(cert?).unwrap();
     }
-    let mut config = match ClientConfig::builder()
+
+    let suites = provider::DEFAULT_CIPHER_SUITES.to_vec();
+    let versions = DEFAULT_VERSIONS.to_vec();
+    let mut config = match ClientConfig::builder_with_provider(
+            CryptoProvider {
+                cipher_suites: suites,
+                ..provider::default_provider()
+            }
+            .into(),
+        )
+        .with_protocol_versions(&versions)
+        .expect("inconsistent cipher-suite/versions selected")
         .with_root_certificates(root_cert_store)
         .with_client_auth_cert(cert_chain, key_der) {
             Ok(config) => config,
             Err(_) => return Err(HdfsError::TLSClientConfigError),
     };
     
-    config.key_log = Arc::new(rustls::KeyLogFile::new());
+    config.key_log = Arc::new(KeyLogFile::new());
 
     let connector = TlsConnector::from(Arc::new(config));
     print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() addr: {}\n", addr);
