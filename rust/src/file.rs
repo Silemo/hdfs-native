@@ -31,7 +31,7 @@ impl FileReader {
         located_blocks: hdfs::LocatedBlocksProto,
         ec_schema: Option<EcSchema>,
     ) -> Self {
-        print!("DBG: HDFS-NATIVE file.rs FileReader new() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileReader new() \n");
         Self {
             protocol,
             status,
@@ -43,13 +43,13 @@ impl FileReader {
 
     /// Returns the total size of the file
     pub fn file_length(&self) -> usize {
-        print!("DBG: HDFS-NATIVE file.rs FileReader file_length() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileReader file_length() \n");
         self.status.length as usize
     }
 
     /// Returns the remaining bytes left based on the current cursor position.
     pub fn remaining(&self) -> usize {
-        print!("DBG: HDFS-NATIVE file.rs FileReader remaining() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileReader remaining() \n");
         if self.position > self.file_length() {
             0
         } else {
@@ -59,7 +59,7 @@ impl FileReader {
 
     /// Sets the cursor to the position. Panics if the position is beyond the end of the file
     pub fn seek(&mut self, pos: usize) {
-        print!("DBG: HDFS-NATIVE file.rs FileReader seek() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileReader seek() \n");
         if pos > self.file_length() {
             panic!("Cannot seek beyond the end of a file");
         }
@@ -68,14 +68,14 @@ impl FileReader {
 
     /// Returns the current cursor position in the file
     pub fn tell(&self) -> usize {
-        print!("DBG: HDFS-NATIVE file.rs FileReader tell() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileReader tell() \n");
         self.position
     }
 
     /// Read up to `len` bytes into a new [Bytes] object, advancing the internal position in the file.
     /// An empty [Bytes] object will be returned if the end of the file has been reached.
     pub async fn read(&mut self, len: usize) -> Result<Bytes> {
-        print!("DBG: HDFS-NATIVE file.rs FileReader read() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileReader read() \n");
         if self.position >= self.file_length() {
             Ok(Bytes::new())
         } else {
@@ -88,7 +88,7 @@ impl FileReader {
     /// Read up to `buf.len()` bytes into the provided slice, advancing the internal position in the file.
     /// Returns the number of bytes that were read, or 0 if the end of the file has been reached.
     pub async fn read_buf(&mut self, buf: &mut [u8]) -> Result<usize> {
-        print!("DBG: HDFS-NATIVE file.rs FileReader read_buf() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileReader read_buf() \n");
         if self.position >= self.file_length() {
             Ok(0)
         } else {
@@ -105,7 +105,7 @@ impl FileReader {
     ///
     /// Panics if the requested range is outside of the file
     pub async fn read_range(&self, offset: usize, len: usize) -> Result<Bytes> {
-        print!("DBG: HDFS-NATIVE file.rs FileReader read_range() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileReader read_range() \n");
         let mut stream = self.read_range_stream(offset, len).boxed();
         let mut buf = BytesMut::with_capacity(len);
         while let Some(bytes) = stream.next().await.transpose()? {
@@ -118,7 +118,7 @@ impl FileReader {
     ///
     /// Panics if the requested range is outside of the file
     pub async fn read_range_buf(&self, mut buf: &mut [u8], offset: usize) -> Result<()> {
-        print!("DBG: HDFS-NATIVE file.rs FileReader read_range_buf() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileReader read_range_buf() \n");
         let mut stream = self.read_range_stream(offset, buf.len()).boxed();
         while let Some(bytes) = stream.next().await.transpose()? {
             buf.put(bytes);
@@ -135,7 +135,7 @@ impl FileReader {
         offset: usize,
         len: usize,
     ) -> impl Stream<Item = Result<Bytes>> {
-        print!("DBG: HDFS-NATIVE file.rs FileReader read_range_stream() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileReader read_range_stream() \n");
         if offset + len > self.file_length() {
             panic!("Cannot read past end of the file");
         }
@@ -188,7 +188,7 @@ impl FileWriter {
         // Some for append, None for create
         last_block: Option<hdfs::LocatedBlockProto>,
     ) -> Self {
-        print!("DBG: HDFS-NATIVE file.rs FileWriter new() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileWriter new() \n");
         protocol.add_file_lease(status.file_id(), status.namespace.clone());
         Self {
             protocol,
@@ -202,7 +202,7 @@ impl FileWriter {
     }
 
     async fn create_block_writer(&mut self) -> Result<()> {
-        print!("DBG: HDFS-NATIVE file.rs FileWriter create_block_writer() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileWriter create_block_writer() \n");
         let new_block = if let Some(last_block) = self.last_block.take() {
             // Append operation on first write. Erasure code appends always just create a new block.
             if last_block.b.num_bytes() < self.status.blocksize() && self.status.ec_policy.is_none()
@@ -252,7 +252,7 @@ impl FileWriter {
     }
 
     async fn get_block_writer(&mut self) -> Result<&mut BlockWriter> {
-        print!("DBG: HDFS-NATIVE file.rs FileWriter get_block_writer() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileWriter get_block_writer() \n");
         // If the current writer is full, or hasn't been created, create one
         if self.block_writer.as_ref().is_some_and(|b| b.is_full()) || self.block_writer.is_none() {
             self.create_block_writer().await?;
@@ -262,7 +262,7 @@ impl FileWriter {
     }
 
     pub async fn write(&mut self, mut buf: Bytes) -> Result<usize> {
-        print!("DBG: HDFS-NATIVE file.rs FileWriter write() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileWriter write() \n");
         let bytes_to_write = buf.len();
         // Create a shallow copy of the bytes instance to mutate and track what's been read
         while !buf.is_empty() {
@@ -277,7 +277,7 @@ impl FileWriter {
     }
 
     pub async fn close(&mut self) -> Result<()> {
-        print!("DBG: HDFS-NATIVE file.rs FileWriter close() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileWriter close() \n");
         if !self.closed {
             let extended_block = if let Some(block_writer) = self.block_writer.take() {
                 let extended_block = block_writer.get_extended_block();
@@ -317,7 +317,7 @@ impl FileWriter {
 
 impl Drop for FileWriter {
     fn drop(&mut self) {
-        print!("DBG: HDFS-NATIVE file.rs FileWriter drop() \n");
+        debug!("DBG: HDFS-NATIVE file.rs FileWriter drop() \n");
         if !self.closed {
             warn!("FileWriter dropped without being closed. File content may not have saved or may not be complete");
         }

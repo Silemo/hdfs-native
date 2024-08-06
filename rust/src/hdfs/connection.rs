@@ -92,28 +92,28 @@ async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
     config.key_log = Arc::new(KeyLogFile::new());
 
     let connector = TlsConnector::from(Arc::new(config));
-    print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() addr: {}\n", addr);
+    debug!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() addr: {}\n", addr);
     let (server_name, _port) = addr.split_once(':').unwrap();
-    print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() server_name: {}\n", server_name);
+    debug!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() server_name: {}\n", server_name);
     let domain = match ServerName::try_from(server_name.to_string()) {
         Ok(domain) => domain,
         Err(_) => return Err(HdfsError::TLSDNSInvalidError),
     };
-    print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() Before creating TCP connection \n");
+    debug!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() Before creating TCP connection \n");
     let stream1 = connect(&addr).await?;
-    print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() SUCCESS TCP connection \n");
+    debug!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() SUCCESS TCP connection \n");
     let stream = connector.connect(domain, stream1).await?;
-    print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() SUCCESS TLS connection \n");
+    debug!("DBG: HDFS-NATIVE hdfs/connection.rs - connect_tls() SUCCESS TLS connection \n");
 
     Ok(stream)
 }
 
 fn load_certs(filename: &str) -> Vec<CertificateDer<'static>> {
-    print!("DBG: HDFS-NATIVE hdfs/connection.rs - load_certs() before opening file \n");
+    debug!("DBG: HDFS-NATIVE hdfs/connection.rs - load_certs() before opening file \n");
     let certfile = File::open(filename).expect("cannot open certificate file");
-    print!("DBG: HDFS-NATIVE hdfs/connection.rs - load_certs() after opening file \n");
+    debug!("DBG: HDFS-NATIVE hdfs/connection.rs - load_certs() after opening file \n");
     let mut reader = BufReader::new(certfile);
-    print!("DBG: HDFS-NATIVE hdfs/connection.rs - load_certs() after BufReader \n");
+    debug!("DBG: HDFS-NATIVE hdfs/connection.rs - load_certs() after BufReader \n");
     rustls_pemfile::certs(&mut reader)
         .map(|result| result.unwrap())
         .collect()
@@ -151,7 +151,7 @@ impl AlignmentContext {
         state_id: Option<i64>,
         router_federated_state: Option<Vec<u8>>,
     ) -> Result<()> {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs AlignmentContext update()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs AlignmentContext update()\n");
         if let Some(new_state_id) = state_id {
             self.state_id = new_state_id
         }
@@ -179,7 +179,7 @@ impl AlignmentContext {
     }
 
     fn encode_router_state(&self) -> Option<Vec<u8>> {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs AlignmentContext encode_router_state() \n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs AlignmentContext encode_router_state() \n");
         self.router_federated_state.as_ref().map(|state| {
             hdfs::RouterFederatedStateProto {
                 namespace_state_ids: state.clone(),
@@ -217,13 +217,13 @@ impl RpcConnection {
         alignment_context: Arc<Mutex<AlignmentContext>>,
         nameservice: Option<&str>,
     ) -> Result<Self> {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection connect()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection connect()\n");
         let client_id = Uuid::new_v4().to_bytes_le().to_vec();
         let next_call_id = AtomicI32::new(0);
         let call_map = Arc::new(Mutex::new(HashMap::new()));
 
         let mut stream = connect_tls(url).await?;
-        print!("-----> DBG: HDFS-NATIVE hdfs/connection.rs - RpcConnection SUCCESS CONNECT \n");
+        debug!("-----> DBG: HDFS-NATIVE hdfs/connection.rs - RpcConnection SUCCESS CONNECT \n");
         let message:[u8;7] = [0x68, 0x72, 0x70, 0x63/*hrpc*/, 0x09/*version*/, 0x00 /*service class*/, 0xDF /*auth protocol*/ ] ;
         stream.write_all(&message[..]).await?;
 
@@ -263,7 +263,7 @@ impl RpcConnection {
     }
 
     fn start_sender(&mut self, mut rx: mpsc::Receiver<Vec<u8>>, mut writer: SaslWriter) {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection start_sender()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection start_sender()\n");
         task::spawn(async move {
             while let Some(msg) = rx.recv().await {
                 match writer.write_all(&msg).await {
@@ -275,7 +275,7 @@ impl RpcConnection {
     }
 
     fn start_listener(&mut self, reader: SaslReader) -> Result<JoinHandle<()>> {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection start_listener()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection start_listener()\n");
         let call_map = Arc::clone(&self.call_map);
         let alignment_context = self.alignment_context.clone();
         let listener = task::spawn(async move {
@@ -287,7 +287,7 @@ impl RpcConnection {
     }
 
     fn get_next_call_id(&self) -> i32 {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection get_next_call_id()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection get_next_call_id()\n");
         self.next_call_id.fetch_add(1, Ordering::SeqCst)
     }
 
@@ -296,7 +296,7 @@ impl RpcConnection {
         call_id: i32,
         retry_count: i32,
     ) -> common::RpcRequestHeaderProto {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection get_connection_header()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection get_connection_header()\n");
         let context = self.alignment_context.lock().unwrap();
 
         common::RpcRequestHeaderProto {
@@ -313,31 +313,31 @@ impl RpcConnection {
     }
 
     fn get_connection_context(&self) -> common::IpcConnectionContextProto {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection get_connection_context()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection get_connection_context()\n");
         let user_info = common::UserInformationProto {
             effective_user: self.user_info.effective_user.clone(),
             real_user: self.user_info.real_user.clone(),
         };
 
-        print!("DBG: HDFS_NATIVE hdfs/connection.rs RpcConnection get_connection_context() PROTOCOL: {} \n", PROTOCOL);
+        debug!("DBG: HDFS_NATIVE hdfs/connection.rs RpcConnection get_connection_context() PROTOCOL: {} \n", PROTOCOL);
         let context = common::IpcConnectionContextProto {
             protocol: Some(PROTOCOL.to_string()),
             user_info: Some(user_info),
         };
 
-        print!("DBG: HDFS_NATIVE hdfs/connection.rs RpcConnection get_connection_context - Connection context: {:?}\n", context);
+        debug!("DBG: HDFS_NATIVE hdfs/connection.rs RpcConnection get_connection_context - Connection context: {:?}\n", context);
         context
     }
 
     pub(crate) fn is_alive(&self) -> bool {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection is_alive()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection is_alive()\n");
         self.listener
             .as_ref()
             .is_some_and(|handle| !handle.is_finished())
     }
 
     pub(crate) async fn write_messages(&self, messages: &[&[u8]]) -> Result<()> {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection write_messages()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection write_messages()\n");
         let mut size = 0u32;
         for msg in messages.iter() {
             size += msg.len() as u32;
@@ -356,22 +356,22 @@ impl RpcConnection {
     }
 
     pub(crate) async fn call(&self, method_name: &str, message: &[u8]) -> Result<Bytes> {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection call()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection call()\n");
         let call_id = self.get_next_call_id();
         let conn_header = self.get_connection_header(call_id, 0);
 
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection call() -  RPC connection header: {:?} \n", conn_header);
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection call() -  RPC connection header: {:?} \n", conn_header);
 
         let conn_header_buf = conn_header.encode_length_delimited_to_vec();
 
-        print!("DBG: HDFS_NATIVE hdfs/connection.rs RpcConnection call() PROTOCOL: {} \n", PROTOCOL);
+        debug!("DBG: HDFS_NATIVE hdfs/connection.rs RpcConnection call() PROTOCOL: {} \n", PROTOCOL);
 
         let msg_header = common::RequestHeaderProto {
             method_name: method_name.to_string(),
             declaring_class_protocol_name: PROTOCOL.to_string(),
             client_protocol_version: 1,
         };
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection call() - RPC request header: {:?} \n", msg_header);
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcConnection call() - RPC request header: {:?} \n", msg_header);
 
         let header_buf = msg_header.encode_length_delimited_to_vec();
 
@@ -399,7 +399,7 @@ impl RpcListener {
         reader: SaslReader,
         alignment_context: Arc<Mutex<AlignmentContext>>,
     ) -> Self {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener new()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener new()\n");
         RpcListener {
             call_map,
             reader,
@@ -409,7 +409,7 @@ impl RpcListener {
     }
 
     async fn start(&mut self) {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener start()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener start()\n");
         loop {
             if let Err(error) = self.read_response().await {
                 match error {
@@ -422,22 +422,22 @@ impl RpcListener {
     }
 
     async fn read_response(&mut self) -> Result<()> {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener read_response()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener read_response()\n");
         // Read the size of the message
         let mut buf = [0u8; 4];
         self.reader.read_exact(&mut buf).await?;
         let msg_length = u32::from_be_bytes(buf);
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener read_response() - After reading msg size\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener read_response() - After reading msg size\n");
         // Read the whole message
         let mut buf = BytesMut::zeroed(msg_length as usize);
         self.reader.read_exact(&mut buf).await?;
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener read_response() - After reading whole msg\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener read_response() - After reading whole msg\n");
 
         let mut bytes = buf.freeze();
         let rpc_response = common::RpcResponseHeaderProto::decode_length_delimited(&mut bytes)?;
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener read_response() - After decode_length\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener read_response() - After decode_length\n");
 
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs - RPC header response: {:?}\n", rpc_response);
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs - RPC header response: {:?}\n", rpc_response);
 
         let call_id = rpc_response.call_id as i32;
 
@@ -446,7 +446,7 @@ impl RpcListener {
         if let Some(call) = call {
             match rpc_response.status() {
                 RpcStatusProto::Success => {
-                    print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener RpcStatusProto::Success\n");
+                    debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener RpcStatusProto::Success\n");
                     self.alignment_context
                         .lock()
                         .unwrap()
@@ -454,14 +454,14 @@ impl RpcListener {
                     let _ = call.send(Ok(bytes));
                 }
                 RpcStatusProto::Error => {
-                    print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener RpcStatusProto::Error\n");
+                    debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener RpcStatusProto::Error\n");
                     let _ = call.send(Err(HdfsError::RPCError(
                         rpc_response.exception_class_name().to_string(),
                         rpc_response.error_msg().to_string(),
                     )));
                 }
                 RpcStatusProto::Fatal => {
-                    print!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener RpcStatusProto::Fatal\n");
+                    debug!("DBG: HDFS-NATIVE hdfs/connection.rs RpcListener RpcStatusProto::Fatal\n");
                     warn!(
                         "RPC fatal error: {}: {}",
                         rpc_response.exception_class_name(),
@@ -485,7 +485,7 @@ pub(crate) enum Op {
 
 impl Op {
     fn value(&self) -> u8 {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs Op value()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs Op value()\n");
         match self {
             Self::WriteBlock => 80,
             Self::ReadBlock => 81,
@@ -505,7 +505,7 @@ pub(crate) struct Packet {
 
 impl Packet {
     fn new(header: hdfs::PacketHeaderProto, checksum: BytesMut, data: BytesMut) -> Self {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs Packet new()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs Packet new()\n");
         Self {
             header,
             checksum,
@@ -521,7 +521,7 @@ impl Packet {
         bytes_per_checksum: u32,
         max_packet_size: u32,
     ) -> Self {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs Packet empty()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs Packet empty()\n");
         let header = hdfs::PacketHeaderProto {
             offset_in_block: offset,
             seqno,
@@ -540,14 +540,14 @@ impl Packet {
     }
 
     pub(crate) fn set_last_packet(&mut self) {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs Packet set_last_packet()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs Packet set_last_packet()\n");
         self.header.last_packet_in_block = true;
         // Opinionated: always sync block for safety
         self.header.sync_block = Some(true);
     }
 
     fn max_packet_chunks(bytes_per_checksum: u32, max_packet_size: u32) -> usize {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs Packet max_packet_chunks()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs Packet max_packet_chunks()\n");
         if max_packet_size > 0 {
             let data_size = max_packet_size as usize - MAX_PACKET_HEADER_SIZE;
             let chunk_size = bytes_per_checksum as usize + CHECKSUM_BYTES;
@@ -559,23 +559,23 @@ impl Packet {
     }
 
     pub(crate) fn write(&mut self, buf: &mut Bytes) {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs Packet write()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs Packet write()\n");
         self.data
             .put(buf.split_to(usize::min(self.max_data_size - self.data.len(), buf.len())));
     }
 
     pub(crate) fn is_full(&self) -> bool {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs Packet is_full()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs Packet is_full()\n");
         self.data.len() == self.max_data_size
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs Packet is_empty()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs Packet is_empty()\n");
         self.data.is_empty()
     }
 
     fn finalize(&mut self) -> (hdfs::PacketHeaderProto, Bytes, Bytes) {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs Packet finalize()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs Packet finalize()\n");
         let data = self.data.split().freeze();
 
         let mut chunk_start = 0;
@@ -597,7 +597,7 @@ impl Packet {
         self,
         checksum_info: &Option<hdfs::ReadOpChecksumInfoProto>,
     ) -> Result<Bytes> {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs Packet get_data()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs Packet get_data()\n");
         // Verify the checksums if they were requested
         let mut checksums = self.checksum.freeze();
         let data = self.data.freeze();
@@ -639,7 +639,7 @@ impl DatanodeConnection {
         token: &TokenProto,
         encryption_key: Option<DataEncryptionKeyProto>,
     ) -> Result<Self> {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection connect()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection connect()\n");
         let url = format!("{}:{}", datanode_id.ip_addr, datanode_id.xfer_port);
         let stream = connect(&url).await?;
 
@@ -662,7 +662,7 @@ impl DatanodeConnection {
         op: Op,
         message: &impl Message,
     ) -> Result<hdfs::BlockOpResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection send()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection send()\n");
         self.writer
             .write_all(&DATA_TRANSFER_VERSION.to_be_bytes())
             .await?;
@@ -683,7 +683,7 @@ impl DatanodeConnection {
         block: &hdfs::ExtendedBlockProto,
         token: Option<common::TokenProto>,
     ) -> hdfs::ClientOperationHeaderProto {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection build_header()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection build_header()\n");
         let base_header = hdfs::BaseHeaderProto {
             block: block.clone(),
             token,
@@ -697,7 +697,7 @@ impl DatanodeConnection {
     }
 
     pub(crate) async fn read_packet(&mut self) -> Result<Packet> {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection read_packet()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection read_packet()\n");
         let mut payload_len_buf = [0u8; 4];
         let mut header_len_buf = [0u8; 2];
         self.reader.read_exact(&mut payload_len_buf).await?;
@@ -720,7 +720,7 @@ impl DatanodeConnection {
     }
 
     pub(crate) async fn send_read_success(&mut self) -> Result<()> {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection send_read_sucess()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection send_read_sucess()\n");
         let client_read_status = hdfs::ClientReadStatusProto {
             status: hdfs::Status::ChecksumOk as i32,
         };
@@ -734,7 +734,7 @@ impl DatanodeConnection {
     }
 
     pub(crate) fn split(self) -> (DatanodeReader, DatanodeWriter) {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection split()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnection split()\n");
         let reader = DatanodeReader {
             reader: self.reader,
         };
@@ -753,7 +753,7 @@ pub(crate) struct DatanodeReader {
 
 impl DatanodeReader {
     pub(crate) async fn read_ack(&mut self) -> Result<hdfs::PipelineAckProto> {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeReader ack()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeReader ack()\n");
         let message = self.reader.read_proto().await?;
 
         let response = hdfs::PipelineAckProto::decode(message)?;
@@ -769,7 +769,7 @@ pub(crate) struct DatanodeWriter {
 impl DatanodeWriter {
     /// Create a buffer to send to the datanode
     pub(crate) async fn write_packet(&mut self, packet: &mut Packet) -> Result<()> {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeWriter write_packet()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeWriter write_packet()\n");
         let (header, checksum, data) = packet.finalize();
 
         let payload_len = (checksum.len() + data.len() + 4) as u32;
@@ -804,7 +804,7 @@ impl DatanodeConnectionCache {
     pub(crate) fn get(&self, datanode_id: &hdfs::DatanodeIdProto) -> Option<DatanodeConnection> {
         // Keep things simply and just expire cache entries when checking the cache. We could
         // move this to its own task but that will add a little more complexity.
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnectionCache get()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnectionCache get()\n");
         self.remove_expired();
 
         let url = format!("{}:{}", datanode_id.ip_addr, datanode_id.xfer_port);
@@ -819,7 +819,7 @@ impl DatanodeConnectionCache {
     }
 
     pub(crate) fn release(&self, conn: DatanodeConnection) {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnectionCache release()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnectionCache release()\n");
         let expire_at = Utc::now() + DATANODE_CACHE_EXPIRY;
         let mut cache = self.cache.lock().unwrap();
         cache
@@ -829,7 +829,7 @@ impl DatanodeConnectionCache {
     }
 
     fn remove_expired(&self) {
-        print!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnectionCache remove_expired()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/connection.rs DatanodeConnectionCache remove_expired()\n");
         let mut cache = self.cache.lock().unwrap();
         let now = Utc::now();
         for (_, values) in cache.iter_mut() {

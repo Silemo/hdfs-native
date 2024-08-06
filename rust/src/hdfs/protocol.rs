@@ -37,7 +37,7 @@ pub(crate) struct NamenodeProtocol {
 
 impl NamenodeProtocol {
     pub(crate) fn new(proxy: NameServiceProxy) -> Self {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol new()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol new()\n");
         let client_name = format!("hdfs_native_client-{}", Uuid::new_v4().as_hyphenated());
         NamenodeProtocol {
             proxy,
@@ -50,7 +50,7 @@ impl NamenodeProtocol {
     }
 
     pub(crate) async fn get_file_info(&self, src: &str) -> Result<hdfs::GetFileInfoResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_file_info()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_file_info()\n");
         let message = hdfs::GetFileInfoRequestProto {
             src: src.to_string(),
         };
@@ -73,7 +73,7 @@ impl NamenodeProtocol {
         start_after: Vec<u8>,
         need_location: bool,
     ) -> Result<hdfs::GetListingResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_listing()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_listing()\n");
         let message = hdfs::GetListingRequestProto {
             src: src.to_string(),
             start_after,
@@ -95,7 +95,7 @@ impl NamenodeProtocol {
         &self,
         src: &str,
     ) -> Result<hdfs::GetLocatedFileInfoResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_located_file_info()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_located_file_info()\n");
         let message = hdfs::GetLocatedFileInfoRequestProto {
             src: Some(src.to_string()),
             need_block_token: Some(true),
@@ -116,7 +116,7 @@ impl NamenodeProtocol {
     }
 
     pub(crate) async fn get_server_defaults(&self) -> Result<hdfs::GetServerDefaultsResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_server_defaults()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_server_defaults()\n");
         let message = hdfs::GetServerDefaultsRequestProto::default();
 
         let response = self
@@ -133,7 +133,7 @@ impl NamenodeProtocol {
     }
 
     pub(crate) async fn get_cached_server_defaults(&self) -> Result<FsServerDefaultsProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_cached_server_defaults()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_cached_server_defaults()\n");
         let mut server_defaults = self.server_defaults.lock().await;
         if let Some(defaults) = server_defaults.as_ref() {
             Ok(defaults.clone())
@@ -147,7 +147,7 @@ impl NamenodeProtocol {
     pub(crate) async fn get_data_encryption_key(
         &self,
     ) -> Result<GetDataEncryptionKeyResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_data_encryption_key()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_data_encryption_key()\n");
         let message = hdfs::GetDataEncryptionKeyRequestProto::default();
 
         let response = self
@@ -166,7 +166,7 @@ impl NamenodeProtocol {
     pub(crate) async fn get_cached_data_encryption_key(
         &self,
     ) -> Result<Option<DataEncryptionKeyProto>> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_cached_data_encryption_key()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_cached_data_encryption_key()\n");
         let server_defaults = self.get_cached_server_defaults().await?;
         if server_defaults.encrypt_data_transfer() {
             let mut encryption_key = self.encryption_key.lock().await;
@@ -195,7 +195,7 @@ impl NamenodeProtocol {
         replication: Option<u32>,
         block_size: Option<u64>,
     ) -> Result<hdfs::CreateResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol create()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol create()\n");
         let masked = hdfs::FsPermissionProto { perm: permission };
         let mut create_flag = hdfs::CreateFlagProto::Create as u32;
         if overwrite {
@@ -234,7 +234,7 @@ impl NamenodeProtocol {
         src: &str,
         new_block: bool,
     ) -> Result<hdfs::AppendResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol append()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol append()\n");
         let mut flag = hdfs::CreateFlagProto::Append as u32;
         if new_block {
             flag |= hdfs::CreateFlagProto::NewBlock as u32;
@@ -264,7 +264,7 @@ impl NamenodeProtocol {
         previous: Option<hdfs::ExtendedBlockProto>,
         file_id: Option<u64>,
     ) -> Result<hdfs::AddBlockResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol add_block()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol add_block()\n");
         let message = hdfs::AddBlockRequestProto {
             src: src.to_string(),
             client_name: self.client_name.clone(),
@@ -291,7 +291,7 @@ impl NamenodeProtocol {
         last: Option<hdfs::ExtendedBlockProto>,
         file_id: Option<u64>,
     ) -> Result<hdfs::CompleteResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol complete()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol complete()\n");
         let message = hdfs::CompleteRequestProto {
             src: src.to_string(),
             client_name: self.client_name.clone(),
@@ -316,7 +316,7 @@ impl NamenodeProtocol {
         permission: u32,
         create_parent: bool,
     ) -> Result<hdfs::MkdirsResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol mkdirs()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol mkdirs()\n");
         let masked = hdfs::FsPermissionProto { perm: permission };
 
         let message = hdfs::MkdirsRequestProto {
@@ -343,7 +343,7 @@ impl NamenodeProtocol {
         dst: &str,
         overwrite: bool,
     ) -> Result<hdfs::Rename2ResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol rename()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol rename()\n");
         let message = hdfs::Rename2RequestProto {
             src: src.to_string(),
             dst: dst.to_string(),
@@ -367,7 +367,7 @@ impl NamenodeProtocol {
         src: &str,
         recursive: bool,
     ) -> Result<hdfs::DeleteResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol delete()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol delete()\n");
         let message = hdfs::DeleteRequestProto {
             src: src.to_string(),
             recursive,
@@ -388,7 +388,7 @@ impl NamenodeProtocol {
         &self,
         namespaces: Vec<String>,
     ) -> Result<hdfs::RenewLeaseResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol renew_lease()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol renew_lease()\n");
         let message = hdfs::RenewLeaseRequestProto {
             client_name: self.client_name.clone(),
             namespaces,
@@ -411,7 +411,7 @@ impl NamenodeProtocol {
         mtime: u64,
         atime: u64,
     ) -> Result<hdfs::SetTimesResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol set_times()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol set_times()\n");
         let message = hdfs::SetTimesRequestProto {
             src: src.to_string(),
             mtime,
@@ -435,7 +435,7 @@ impl NamenodeProtocol {
         owner: Option<&str>,
         group: Option<&str>,
     ) -> Result<hdfs::SetOwnerResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol set_owner()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol set_owner()\n");
         let message = hdfs::SetOwnerRequestProto {
             src: src.to_string(),
             username: owner.map(str::to_string),
@@ -459,7 +459,7 @@ impl NamenodeProtocol {
         src: &str,
         permission: u32,
     ) -> Result<hdfs::SetPermissionResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol set_permission()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol set_permission()\n");
         let message = hdfs::SetPermissionRequestProto {
             src: src.to_string(),
             permission: hdfs::FsPermissionProto { perm: permission },
@@ -482,7 +482,7 @@ impl NamenodeProtocol {
         src: &str,
         replication: u32,
     ) -> Result<hdfs::SetReplicationResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol set_replication()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol set_replication()\n");
         let message = hdfs::SetReplicationRequestProto {
             src: src.to_string(),
             replication,
@@ -504,7 +504,7 @@ impl NamenodeProtocol {
         &self,
         path: &str,
     ) -> Result<hdfs::GetContentSummaryResponseProto> {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_content_summary()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol get_content_summary()\n");
         let message = hdfs::GetContentSummaryRequestProto {
             path: path.to_string(),
         };
@@ -543,7 +543,7 @@ pub(crate) trait LeaseTracker {
 
 impl LeaseTracker for Arc<NamenodeProtocol> {
     fn add_file_lease(&self, file_id: u64, namespace: Option<String>) {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol LeaseTracker add_file_lease()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol LeaseTracker add_file_lease()\n");
         self.open_files
             .lock()
             .unwrap()
@@ -556,7 +556,7 @@ impl LeaseTracker for Arc<NamenodeProtocol> {
     }
 
     fn remove_file_lease(&self, file_id: u64, namespace: Option<String>) {
-        print!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol LeaseTracker remove_file_lease()\n");
+        debug!("DBG: HDFS-NATIVE hdfs/protocol.rs NamenodeProtocol LeaseTracker remove_file_lease()\n");
         self.open_files
             .lock()
             .unwrap()
@@ -565,7 +565,7 @@ impl LeaseTracker for Arc<NamenodeProtocol> {
 }
 
 fn start_lease_renewal(protocol: Arc<NamenodeProtocol>) -> JoinHandle<()> {
-    print!("DBG: HDFS-NATIVE hdfs/protocol.rs start_lease_renewal()\n");
+    debug!("DBG: HDFS-NATIVE hdfs/protocol.rs start_lease_renewal()\n");
     tokio::spawn(async move {
         // Track renewal times for each protocol
         let mut last_renewal: Option<SystemTime> = None;
