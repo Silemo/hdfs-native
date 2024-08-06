@@ -3,6 +3,7 @@ mod common;
 
 #[cfg(feature = "integration-test")]
 mod test {
+    use log::debug;
     use crate::common::{assert_bufs_equal, setup, TEST_FILE_INTS};
     use bytes::{BufMut, BytesMut};
     use hdfs_native::{client::FileStatus, minidfs::DfsFeatures, Client, Result, WriteOptions};

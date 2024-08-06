@@ -1,6 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use log::debug;
 
 use futures::stream::BoxStream;
 use futures::{stream, StreamExt};
