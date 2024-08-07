@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::env;
 use log::debug;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
@@ -37,6 +38,11 @@ use crate::security::sasl::{SaslReader, SaslRpcClient, SaslWriter};
 use crate::security::user::UserInfo;
 use crate::{HdfsError, Result};
 
+const ROOT_CA_BUNDLE: &str = "ROOT_CA_BUNDLE";
+const CLIENT_CERTIFICATE: &str = "CLIENT_CERTIFICATE";
+const CLIENT_KEY: &str = "CLIENT_KEY";
+const CLIENT_CERTIFICATES_BUNDLE: &str = "CLIENT_CERTIFICATES_BUNDLE";
+
 const PROTOCOL: &str = "org.apache.hadoop.hdfs.protocol.ClientProtocol";
 const DATA_TRANSFER_VERSION: u16 = 28;
 const MAX_PACKET_HEADER_SIZE: usize = 33;
@@ -64,9 +70,20 @@ async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
     // Create where to store the certificate
     let mut root_cert_store = RootCertStore::empty();
     // All Certificates and key directory
-    let cafile = PathBuf::from("/srv/hopsworks-data/super_crypto/hdfs/hops_root_ca.pem");
-    let cert_chain = load_certs("/srv/hops/super_crypto/hdfs/hdfs_certificate_bundle.pem");
-    let key_der = load_private_key("/srv/hops/super_crypto/hdfs/hdfs_priv.pem");
+    let cafile = match env::var(ROOT_CA_BUNDLE) {
+        Ok(dir) => PathBuf::from(dir),
+        Err(_) => PathBuf::from("/srv/hopsworks-data/super_crypto/hdfs/hops_root_ca.pem"),
+    };
+
+    let cert_chain = match env::var(CLIENT_CERTIFICATE) {
+        Ok(dir) => load_certs(&dir),
+        Err(_) => load_certs("/srv/hops/super_crypto/hdfs/hdfs_certificate_bundle.pem"),
+    };
+
+    let key_der = match env::var(CLIENT_KEY) {
+        Ok(dir) => load_private_key(&dir),
+        Err(_) => load_private_key("/srv/hops/super_crypto/hdfs/hdfs_priv.pem"),
+    };
     // Read the PEM file
     let mut pem = BufReader::new(File::open(cafile)?);
     for cert in rustls_pemfile::certs(&mut pem) {
