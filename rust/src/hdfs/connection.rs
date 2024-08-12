@@ -38,10 +38,8 @@ use crate::security::sasl::{SaslReader, SaslRpcClient, SaslWriter};
 use crate::security::user::UserInfo;
 use crate::{HdfsError, Result};
 
-const ROOT_CA_BUNDLE: &str = "ROOT_CA_BUNDLE";
-const CLIENT_CERTIFICATE: &str = "CLIENT_CERTIFICATE";
-const CLIENT_KEY: &str = "CLIENT_KEY";
-const CLIENT_CERTIFICATES_BUNDLE: &str = "CLIENT_CERTIFICATES_BUNDLE";
+const HADOOP_USER_NAME: &str = "HADOOP_USER_NAME";
+const PEMS_DIR: &str = "PEMS_DIR";
 
 const PROTOCOL: &str = "org.apache.hadoop.hdfs.protocol.ClientProtocol";
 const DATA_TRANSFER_VERSION: u16 = 28;
@@ -69,21 +67,34 @@ async fn connect(addr: &str) -> Result<TcpStream> {
 async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
     // Create where to store the certificate
     let mut root_cert_store = RootCertStore::empty();
+    
     // All Certificates and key directory
-    let cafile = match env::var(ROOT_CA_BUNDLE) {
-        Ok(dir) => PathBuf::from(dir),
-        Err(_) => PathBuf::from("/srv/hopsworks-data/super_crypto/hdfs/hops_root_ca.pem"),
-    };
+    let (cafile, 
+        cert_chain, 
+        key_der) = 
+        
+        if !env::var(HADOOP_USER_NAME).is_err() && !env::var(PEMS_DIR).is_err() {
+            let hadoop_user_name = env::var(HADOOP_USER_NAME).unwrap();
+            let pems_dir = env::var(PEMS_DIR).unwrap();
 
-    let cert_chain = match env::var(CLIENT_CERTIFICATE) {
-        Ok(dir) => load_certs(&dir),
-        Err(_) => load_certs("/srv/hops/super_crypto/hdfs/hdfs_certificate_bundle.pem"),
-    };
+            let root_ca_bundle_filename: String = format!("{hadoop_user_name}_root_ca.pem");
+            let client_certificates_bundle_filename: String = format!("{hadoop_user_name}_certificate_bundle.pem");
+            let client_key_filename: String = format!("{hadoop_user_name}_private_key.pem");
 
-    let key_der = match env::var(CLIENT_KEY) {
-        Ok(dir) => load_private_key(&dir),
-        Err(_) => load_private_key("/srv/hops/super_crypto/hdfs/hdfs_priv.pem"),
-    };
+            let root_ca_bundle: String = format!("{}/{}", pems_dir, root_ca_bundle_filename);
+            let client_certificate_bundle: String = format!("{}/{}", pems_dir, client_certificates_bundle_filename);
+            let client_key: String = format!("{}/{}", pems_dir, client_key_filename);
+
+            (PathBuf::from(root_ca_bundle), 
+            load_certs(&client_certificate_bundle), 
+            load_private_key(&client_key))
+        } else {
+            (PathBuf::from("/srv/hopsworks-data/super_crypto/hdfs/hops_root_ca.pem"), 
+            load_certs("/srv/hops/super_crypto/hdfs/hdfs_certificate_bundle.pem"), 
+            load_private_key("/srv/hops/super_crypto/hdfs/hdfs_priv.pem"))
+        }
+    ;
+
     // Read the PEM file
     let mut pem = BufReader::new(File::open(cafile)?);
     for cert in rustls_pemfile::certs(&mut pem) {
