@@ -168,35 +168,35 @@ mod test {
     // }
 
     pub async fn test_with_features(features: &HashSet<DfsFeatures>) -> Result<()> {
-        debug!("DBG: HDFS-NATIVE TESTS - test_with_features - START\n ");
+        print!("DBG: HDFS-NATIVE TESTS - test_with_features - START\n ");
         let _ = env_logger::builder().is_test(true).try_init();
 
         //let _dfs = setup(features);
         let mut config: HashMap<String, String> = HashMap::new();
         
         let client = Client::new_with_config("hdfs://rpc.namenode.service.consul:8020/tmp/integration-tests", config).unwrap();
-        debug!("DBG: HDFS-NATIVE TESTS - test_with_features - After config\n ");
+        print!("DBG: HDFS-NATIVE TESTS - test_with_features - After config\n ");
         test_file_info(&client).await?;
-        debug!("DBG: HDFS-NATIVE TESTS - test_with_features - After file_info\n ");
+        print!("DBG: HDFS-NATIVE TESTS - test_with_features - After file_info\n ");
         test_listing(&client).await?;
-        debug!("DBG: HDFS-NATIVE TESTS - test_with_features - After test_listing\n ");
+        print!("DBG: HDFS-NATIVE TESTS - test_with_features - After test_listing\n ");
         test_rename(&client).await?;
-        debug!("DBG: HDFS-NATIVE TESTS - test_with_features - After test_rename\n ");
+        print!("DBG: HDFS-NATIVE TESTS - test_with_features - After test_rename\n ");
         test_dirs(&client).await?;
-        debug!("DBG: HDFS-NATIVE TESTS - test_with_features - After test_dirs\n ");
+        print!("DBG: HDFS-NATIVE TESTS - test_with_features - After test_dirs\n ");
         test_read_write(&client).await?;
-        debug!("DBG: HDFS-NATIVE TESTS - test_with_features - After read_write\n ");
+        print!("DBG: HDFS-NATIVE TESTS - test_with_features - After read_write\n ");
         // We use writing to create files, so do this after
         test_recursive_listing(&client).await?;
-        debug!("DBG: HDFS-NATIVE TESTS - test_with_features - After recursive_listing\n ");
+        print!("DBG: HDFS-NATIVE TESTS - test_with_features - After recursive_listing\n ");
         test_set_times(&client).await?;
-        debug!("DBG: HDFS-NATIVE TESTS - test_with_features - After set_times\n ");
+        print!("DBG: HDFS-NATIVE TESTS - test_with_features - After set_times\n ");
         test_set_owner(&client).await?;
-        debug!("DBG: HDFS-NATIVE TESTS - test_with_features - After set_owner\n ");
+        print!("DBG: HDFS-NATIVE TESTS - test_with_features - After set_owner\n ");
         test_set_permission(&client).await?;
-        debug!("DBG: HDFS-NATIVE TESTS - test_with_features - After set_permission\n ");
+        print!("DBG: HDFS-NATIVE TESTS - test_with_features - After set_permission\n ");
         test_set_replication(&client).await?;
-        debug!("DBG: HDFS-NATIVE TESTS - test_with_features - After set_replication\n ");
+        print!("DBG: HDFS-NATIVE TESTS - test_with_features - After set_replication\n ");
         test_get_content_summary(&client).await?;
 
         Ok(())
