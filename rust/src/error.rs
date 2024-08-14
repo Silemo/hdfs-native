@@ -51,6 +51,8 @@ pub enum HdfsError {
     TLSClientConfigError,
     #[error("TLS Error: DNS name invalid")]
     TLSDNSInvalidError,
+    #[error("TCP Error: TCP connection failed")]
+    TCPConnectionError(String),
 }
 
 pub type Result<T> = std::result::Result<T, HdfsError>;

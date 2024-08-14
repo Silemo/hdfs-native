@@ -55,7 +55,10 @@ pub(crate) static DATANODE_CACHE: Lazy<DatanodeConnectionCache> =
 // Connect to a remote host and return a TcpStream with standard options we want
 async fn connect(addr: &str) -> Result<TcpStream> {
     print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect() Before TcpStream connect. Addr: {} \n", addr);
-    let stream = TcpStream::connect(addr).await?;
+    let stream = match TcpStream::connect(addr).await {
+        Ok(stream) => stream,
+        Err(e) => return Err(HdfsError::TCPConnectionError(e.to_string())),
+    };
     print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect() After TcpStream connect. \n");
     stream.set_nodelay(true)?;
     print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect() After set_nodelay(true). \n");
