@@ -57,7 +57,10 @@ async fn connect(addr: &str) -> Result<TcpStream> {
     print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect() Before TcpStream connect. Addr: {} \n", addr);
     let stream = match TcpStream::connect(addr).await {
         Ok(stream) => stream,
-        Err(e) => return Err(HdfsError::TCPConnectionError(e.to_string())),
+        Err(e) => {
+            print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect() TcpStream Error. Err: {} \n", e.to_string());
+            return Err(HdfsError::TCPConnectionError(e.to_string()))
+        },
     };
     print!("DBG: HDFS-NATIVE hdfs/connection.rs - connect() After TcpStream connect. \n");
     stream.set_nodelay(true)?;
