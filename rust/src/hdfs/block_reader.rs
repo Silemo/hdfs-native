@@ -39,7 +39,6 @@ pub(crate) fn get_block_stream(
     len: usize,
     ec_schema: Option<EcSchema>,
 ) -> BoxStream<'static, Result<Bytes>> {
-    print!("DBG: HDFS-NATIVE hdfs/block_reader.rs get_block_stream()\n");
     if let Some(ec_schema) = ec_schema {
         StripedBlockStream::new(protocol, block, offset, len, ec_schema)
             .into_stream()
@@ -60,7 +59,6 @@ async fn connect_and_send(
     offset: u64,
     len: u64,
 ) -> Result<(DatanodeConnection, BlockOpResponseProto)> {
-    print!("DBG: HDFS-NATIVE hdfs/block_reader.rs connect_and_send()\n");
     let mut remaining_attempts = 2;
     while remaining_attempts > 0 {
         if let Some(mut conn) = DATANODE_CACHE.get(datanode_id) {
@@ -126,7 +124,6 @@ impl ReplicatedBlockStream {
         offset: usize,
         len: usize,
     ) -> Self {
-        print!("DBG: HDFS-NATIVE hdfs/block_reader.rs ReplicatedBlockStream new()\n");
         let (sender, receiver) = mpsc::channel(READ_PACKET_BUFFER_LEN);
 
         Self {
@@ -144,7 +141,6 @@ impl ReplicatedBlockStream {
     async fn select_next_datanode(
         &mut self,
     ) -> Result<(DatanodeConnection, Option<ReadOpChecksumInfoProto>)> {
-        print!("DBG: HDFS-NATIVE hdfs/block_reader.rs ReplicatedBlockStream select_next_datanode()\n");
         if self.current_replica >= self.block.locs.len() {
             return Err(HdfsError::DataTransferError(
                 "All DataNodes failed".to_string(),
@@ -173,7 +169,6 @@ impl ReplicatedBlockStream {
     }
 
     async fn next_packet(&mut self) -> Result<Option<Bytes>> {
-        print!("DBG: HDFS-NATIVE hdfs/block_reader.rs ReplicatedBlockStream next_packet()\n");
         // We've finished this read, just return None
         if self.len == 0 {
             return Ok(None);
@@ -232,7 +227,6 @@ impl ReplicatedBlockStream {
         checksum_info: Option<ReadOpChecksumInfoProto>,
         sender: Sender<Result<(PacketHeaderProto, Bytes)>>,
     ) -> JoinHandle<Result<DatanodeConnection>> {
-        print!("DBG: HDFS-NATIVE hdfs/block_reader.rs ReplicatedBlockStream start_packet_listener()\n");
         tokio::spawn(async move {
             loop {
                 let packet = connection.read_packet().await?;
@@ -253,7 +247,6 @@ impl ReplicatedBlockStream {
     }
 
     fn into_stream(self) -> impl Stream<Item = Result<Bytes>> {
-        print!("DBG: HDFS-NATIVE hdfs/block_reader.rs ReplicatedBlockStream into_stream()\n");
         stream::unfold(self, |mut state| async move {
             let next = state.next_packet().await.transpose();
             next.map(|n| (n, state))
@@ -271,7 +264,6 @@ struct CellReader {
 
 impl CellReader {
     fn new(cell_size: usize, block_stream: Option<ReplicatedBlockStream>) -> Self {
-        print!("DBG: HDFS-NATIVE hdfs/block_reader.rs CellReader new()\n");
         Self {
             cell_size,
             cell_buffer: BytesMut::with_capacity(cell_size),
@@ -281,7 +273,6 @@ impl CellReader {
     }
 
     async fn next_cell(&mut self) -> Result<Bytes> {
-        print!("DBG: HDFS-NATIVE hdfs/block_reader.rs CellReader next_cell()\n");
         // We always should be reading a full cell, no current optimizations for a partial cell
         // Only exception is the final cell may be partial
         while self.cell_buffer.len() < self.cell_size {
@@ -368,7 +359,6 @@ impl StripedBlockStream {
         len: usize,
         ec_schema: EcSchema,
     ) -> Self {
-        print!("DBG: HDFS-NATIVE hdfs/block_reader.rs StripedBlockStream new()\n");
         assert_eq!(block.block_indices().len(), block.locs.len());
 
         // Cell IDs for the range we are reading, inclusive
@@ -414,7 +404,6 @@ impl StripedBlockStream {
 
     // Reads the next slice of cells and decodes if necessary
     async fn read_slice(&mut self) -> Result<Option<VecDeque<Bytes>>> {
-        print!("DBG: HDFS-NATIVE hdfs/block_reader.rs StripedBlockStream read_slice()\n");
         if self.remaining == 0 {
             return Ok(None);
         }
@@ -491,7 +480,6 @@ impl StripedBlockStream {
     }
 
     async fn start_next_reader(&mut self) -> Result<bool> {
-        print!("DBG: HDFS-NATIVE hdfs/block_reader.rs StripedBlockStream start_next_reader()\n");
         if self.cell_readers.len() >= self.ec_schema.data_units + self.ec_schema.parity_units {
             return Err(HdfsError::ErasureCodingError(
                 "Not enough valid shards".to_string(),
@@ -555,7 +543,6 @@ impl StripedBlockStream {
     }
 
     fn into_stream(self) -> impl Stream<Item = Result<Bytes>> {
-        print!("DBG: HDFS-NATIVE hdfs/block_reader.rs StripedBlockStream into_stream()\n");
         stream::unfold(
             (self, VecDeque::new()),
             |(mut stream, mut buffers)| async move {

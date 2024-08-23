@@ -24,7 +24,6 @@ pub struct Configuration {
 
 impl Configuration {
     pub fn new() -> io::Result<Self> {
-        print!("DBG: HDFS-NATIVE common/config.rs Configuration new()\n");
         let mut map: HashMap<String, String> = HashMap::new();
 
         if let Some(conf_dir) = Self::get_conf_dir() {
@@ -44,7 +43,6 @@ impl Configuration {
     }
 
     pub fn new_with_config(conf_map: HashMap<String, String>) -> io::Result<Self> {
-        print!("DBG: HDFS-NATIVE common/config.rs Configuration new_with_config()\n"); 
         let mut conf = Self::new()?;
         conf.map.extend(conf_map);
         Ok(conf)
@@ -52,12 +50,10 @@ impl Configuration {
 
     /// Get a value from the config, returning None if the key wasn't defined.
     pub fn get(&self, key: &str) -> Option<String> {
-        print!("DBG: HDFS-NATIVE common/config.rs Configuration get()\n");
         self.map.get(key).cloned()
     }
 
     pub(crate) fn get_urls_for_nameservice(&self, nameservice: &str) -> Vec<String> {
-        print!("DBG: HDFS-NATIVE common/config.rs Configuration get_urls_for_nameservice()\n");
         self.map
             .get(&format!("{}.{}", HA_NAMENODES_PREFIX, nameservice))
             .into_iter()
@@ -75,7 +71,6 @@ impl Configuration {
     }
 
     pub(crate) fn get_mount_table(&self, cluster: &str) -> Vec<(Option<String>, String)> {
-        print!("DBG: HDFS-NATIVE common/config.rs Configuration get_mount_table()\n");
         self.map
             .iter()
             .flat_map(|(key, value)| {
@@ -93,7 +88,6 @@ impl Configuration {
     }
 
     fn read_from_file(path: &Path) -> io::Result<Vec<(String, String)>> {
-        print!("DBG: HDFS-NATIVE common/config.rs Configuration read_from_file()\n");
         let content = fs::read_to_string(path)?;
         let tree = roxmltree::Document::parse(&content).unwrap();
 
@@ -124,7 +118,6 @@ impl Configuration {
     }
 
     fn get_conf_dir() -> Option<PathBuf> {
-        print!("DBG: HDFS-NATIVE common/config.rs Configuration get_conf_dir()\n");
         match env::var(HADOOP_CONF_DIR) {
             Ok(dir) => Some(PathBuf::from(dir)),
             Err(_) => match env::var(HADOOP_HOME) {

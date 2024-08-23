@@ -36,7 +36,6 @@ pub struct WriteOptions {
 
 impl Default for WriteOptions {
     fn default() -> Self {
-        print!("DBG: HDFS-NATIVE client.rs WriteOptions default() \n");
         Self {
             block_size: None,
             replication: None,
@@ -56,35 +55,30 @@ impl AsRef<WriteOptions> for WriteOptions {
 impl WriteOptions {
     /// Set the block_size for the new file
     pub fn block_size(mut self, block_size: u64) -> Self {
-        print!("DBG: HDFS-NATIVE client.rs WriteOptions block_size() \n");
         self.block_size = Some(block_size);
         self
     }
 
     /// Set the replication for the new file
     pub fn replication(mut self, replication: u32) -> Self {
-        print!("DBG: HDFS-NATIVE client.rs WriteOptions replication() \n");
         self.replication = Some(replication);
         self
     }
 
     /// Set the raw octal permission value for the new file
     pub fn permission(mut self, permission: u32) -> Self {
-        print!("DBG: HDFS-NATIVE client.rs WriteOptions permission() \n");
         self.permission = permission;
         self
     }
 
     /// Set whether to overwrite an existing file
     pub fn overwrite(mut self, overwrite: bool) -> Self {
-        print!("DBG: HDFS-NATIVE client.rs WriteOptions overwrite() \n");
         self.overwrite = overwrite;
         self
     }
 
     /// Set whether to create all missing parent directories
     pub fn create_parent(mut self, create_parent: bool) -> Self {
-        print!("DBG: HDFS-NATIVE client.rs WriteOptions create_parent() \n");
         self.create_parent = create_parent;
         self
     }
@@ -100,7 +94,6 @@ struct MountLink {
 impl MountLink {
     fn new(viewfs_path: &str, hdfs_path: &str, protocol: Arc<NamenodeProtocol>) -> Self {
         // We should never have an empty path, we always want things mounted at root ("/") by default.
-        print!("DBG: HDFS-NATIVE client.rs MountLink view_path: {}, hdfs_path: {} \n", viewfs_path, hdfs_path);
         Self {
             viewfs_path: PathBuf::from(if viewfs_path.is_empty() {
                 "/"
@@ -113,7 +106,6 @@ impl MountLink {
     }
     /// Convert a viewfs path into a name service path if it matches this link
     fn resolve(&self, path: &Path) -> Option<PathBuf> {
-        print!("DBG: HDFS-NATIVE client.rs MountLink resolve() \n");
         if let Ok(relative_path) = path.strip_prefix(&self.viewfs_path) {
             if relative_path.components().count() == 0 {
                 Some(self.hdfs_path.clone())
@@ -134,7 +126,6 @@ struct MountTable {
 
 impl MountTable {
     fn resolve(&self, src: &str) -> (&MountLink, String) {
-        print!("DBG: HDFS-NATIVE client.rs MountTable resolve() \n");
         let path = Path::new(src);
         for link in self.mounts.iter() {
             if let Some(resolved) = link.resolve(path) {
@@ -162,19 +153,16 @@ impl Client {
     /// If a port is included, the host is treated as a single NameNode. If no port is included, the
     /// host is treated as a name service that will be resolved using the HDFS config.
     pub fn new(url: &str) -> Result<Self> {
-        print!("DBG: HDFS-NATIVE client.rs Client new() url: {} \n", url);
         let parsed_url = Url::parse(url)?;
         Self::with_config(&parsed_url, Configuration::new()?)
     }
 
     pub fn new_with_config(url: &str, config: HashMap<String, String>) -> Result<Self> {
-        print!("DBG: HDFS-NATIVE client.rs Client new_with_config() url: {} \n", url);
         let parsed_url = Url::parse(url)?;
         Self::with_config(&parsed_url, Configuration::new_with_config(config)?)
     }
 
     pub fn default_with_config(config: HashMap<String, String>) -> Result<Self> {
-        print!("DBG: HDFS-NATIVE client.rs Client default_with_config() \n");
         let config = Configuration::new_with_config(config)?;
         let url = config
             .get(config::DEFAULT_FS)
@@ -186,7 +174,6 @@ impl Client {
     }
 
     fn with_config(url: &Url, config: Configuration) -> Result<Self> {
-        print!("DBG: HDFS-NATIVE client.rs Client with_config() \n");
         if !url.has_host() {
             return Err(HdfsError::InvalidArgument(
                 "URL must contain a host".to_string(),
@@ -217,7 +204,6 @@ impl Client {
     }
 
     fn build_mount_table(host: &str, config: &Configuration) -> Result<MountTable> {
-        print!("DBG: HDFS-NATIVE client.rs Client build_mount_table() \n");
         let mut mounts: Vec<MountLink> = Vec::new();
         let mut fallback: Option<MountLink> = None;
 
@@ -263,7 +249,6 @@ impl Client {
 
     /// Retrieve the file status for the file at `path`.
     pub async fn get_file_info(&self, path: &str) -> Result<FileStatus> {
-        print!("DBG: HDFS-NATIVE client.rs Client get_file_info() \n");
         let (link, resolved_path) = self.mount_table.resolve(path);
         match link.protocol.get_file_info(&resolved_path).await?.fs {
             Some(status) => Ok(FileStatus::from(status, path)),
@@ -274,7 +259,6 @@ impl Client {
     /// Retrives a list of all files in directories located at `path`. Wrapper around `list_status_iter` that
     /// returns Err if any part of the stream fails, or Ok if all file statuses were found successfully.
     pub async fn list_status(&self, path: &str, recursive: bool) -> Result<Vec<FileStatus>> {
-        print!("DBG: HDFS-NATIVE client.rs Client list_status() \n");
         let iter = self.list_status_iter(path, recursive);
         let statuses = iter
             .into_stream()
@@ -291,13 +275,11 @@ impl Client {
 
     /// Retrives an iterator of all files in directories located at `path`.
     pub fn list_status_iter(&self, path: &str, recursive: bool) -> ListStatusIterator {
-        print!("DBG: HDFS-NATIVE client.rs Client list_status_iter() \n");
         ListStatusIterator::new(path.to_string(), Arc::clone(&self.mount_table), recursive)
     }
 
     /// Opens a file reader for the file at `path`. Path should not include a scheme.
     pub async fn read(&self, path: &str) -> Result<FileReader> {
-        print!("DBG: HDFS-NATIVE client.rs Client read() \n");
         let (link, resolved_path) = self.mount_table.resolve(path);
         let located_info = link.protocol.get_located_file_info(&resolved_path).await?;
         match located_info.fs {
@@ -337,7 +319,6 @@ impl Client {
         src: &str,
         write_options: impl AsRef<WriteOptions>,
     ) -> Result<FileWriter> {
-        print!("DBG: HDFS-NATIVE client.rs Client create() \n");
         let write_options = write_options.as_ref();
 
         let (link, resolved_path) = self.mount_table.resolve(src);
@@ -373,7 +354,6 @@ impl Client {
     }
 
     fn needs_new_block(class: &str, msg: &str) -> bool {
-        print!("DBG: HDFS-NATIVE client.rs Client needs_new_block() \n");
         class == "java.lang.UnsupportedOperationException" && msg.contains("NEW_BLOCK")
     }
 
@@ -381,7 +361,6 @@ impl Client {
     /// file is replicated, the current block will be appended to until it is full. If the file is erasure
     /// coded, a new block will be created.
     pub async fn append(&self, src: &str) -> Result<FileWriter> {
-        print!("DBG: HDFS-NATIVE client.rs Client append() \n");
         let (link, resolved_path) = self.mount_table.resolve(src);
 
         // Assume the file is replicated and try to append to the current block. If the file is
@@ -422,7 +401,6 @@ impl Client {
     /// If `create_parent` is true, any missing parent directories will be created as well,
     /// otherwise an error will be returned if the parent directory doesn't already exist.
     pub async fn mkdirs(&self, path: &str, permission: u32, create_parent: bool) -> Result<()> {
-        print!("DBG: HDFS-NATIVE client.rs Client mkdirs() \n");
         let (link, resolved_path) = self.mount_table.resolve(path);
         link.protocol
             .mkdirs(&resolved_path, permission, create_parent)
@@ -432,7 +410,6 @@ impl Client {
 
     /// Renames `src` to `dst`. Returns Ok(()) on success, and Err otherwise.
     pub async fn rename(&self, src: &str, dst: &str, overwrite: bool) -> Result<()> {
-        print!("DBG: HDFS-NATIVE client.rs Client rename() \n");
         let (src_link, src_resolved_path) = self.mount_table.resolve(src);
         let (dst_link, dst_resolved_path) = self.mount_table.resolve(dst);
         if src_link.viewfs_path == dst_link.viewfs_path {
@@ -451,7 +428,6 @@ impl Client {
     /// Deletes the file or directory at `path`. If `recursive` is false and `path` is a non-empty
     /// directory, this will fail. Returns `Ok(true)` if it was successfully deleted.
     pub async fn delete(&self, path: &str, recursive: bool) -> Result<bool> {
-        print!("DBG: HDFS-NATIVE client.rs Client delete() \n");
         let (link, resolved_path) = self.mount_table.resolve(path);
         link.protocol
             .delete(&resolved_path, recursive)
@@ -461,7 +437,6 @@ impl Client {
 
     /// Sets the modified and access times for a file. Times should be in milliseconds from the epoch.
     pub async fn set_times(&self, path: &str, mtime: u64, atime: u64) -> Result<()> {
-        print!("DBG: HDFS-NATIVE client.rs Client set_times() \n");
         let (link, resolved_path) = self.mount_table.resolve(path);
         link.protocol
             .set_times(&resolved_path, mtime, atime)
@@ -476,7 +451,6 @@ impl Client {
         owner: Option<&str>,
         group: Option<&str>,
     ) -> Result<()> {
-        print!("DBG: HDFS-NATIVE client.rs Client set_owner() \n");
         let (link, resolved_path) = self.mount_table.resolve(path);
         link.protocol
             .set_owner(&resolved_path, owner, group)
@@ -495,7 +469,6 @@ impl Client {
     /// }
     /// ```
     pub async fn set_permission(&self, path: &str, permission: u32) -> Result<()> {
-        print!("DBG: HDFS-NATIVE client.rs Client set_permission() \n");
         let (link, resolved_path) = self.mount_table.resolve(path);
         link.protocol
             .set_permission(&resolved_path, permission)
@@ -505,7 +478,6 @@ impl Client {
 
     /// Sets the replication for a file.
     pub async fn set_replication(&self, path: &str, replication: u32) -> Result<bool> {
-        print!("DBG: HDFS-NATIVE client.rs Client set_replication() \n");
         let (link, resolved_path) = self.mount_table.resolve(path);
         let result = link
             .protocol
@@ -518,7 +490,6 @@ impl Client {
 
     /// Gets a content summary for a file or directory rooted at `path
     pub async fn get_content_summary(&self, path: &str) -> Result<ContentSummary> {
-        print!("DBG: HDFS-NATIVE client.rs Client get_content_summary() \n");
         let (link, resolved_path) = self.mount_table.resolve(path);
         let result = link
             .protocol
@@ -534,7 +505,6 @@ impl Default for Client {
     /// Creates a new HDFS Client based on the fs.defaultFS setting. Panics if the config files fail to load,
     /// no defaultFS is defined, or the defaultFS is invalid.
     fn default() -> Self {
-        print!("DBG: HDFS-NATIVE client.rs Client default() \n");
         Self::default_with_config(Default::default()).expect("Failed to create default client")
     }
 }
@@ -551,7 +521,6 @@ pub(crate) struct DirListingIterator {
 
 impl DirListingIterator {
     fn new(path: String, mount_table: &Arc<MountTable>, files_only: bool) -> Self {
-        print!("DBG: HDFS-NATIVE client.rs DirListingIterator new() \n");
         let (link, resolved_path) = mount_table.resolve(&path);
 
         DirListingIterator {
@@ -566,7 +535,6 @@ impl DirListingIterator {
     }
 
     async fn get_next_batch(&mut self) -> Result<bool> {
-        print!("DBG: HDFS-NATIVE client.rs DirListingIterator get_next_batch() \n");
         let listing = self
             .link
             .protocol
@@ -594,7 +562,6 @@ impl DirListingIterator {
     }
 
     pub async fn next(&mut self) -> Option<Result<FileStatus>> {
-        print!("DBG: HDFS-NATIVE client.rs DirListingIterator next() \n");
         if self.partial_listing.is_empty() && self.remaining > 0 {
             if let Err(error) = self.get_next_batch().await {
                 self.remaining = 0;
@@ -617,7 +584,6 @@ pub struct ListStatusIterator {
 
 impl ListStatusIterator {
     fn new(path: String, mount_table: Arc<MountTable>, recursive: bool) -> Self {
-        print!("DBG: HDFS-NATIVE client.rs ListStatusIterator new() \n");
         let initial = DirListingIterator::new(path.clone(), &mount_table, false);
 
         ListStatusIterator {
@@ -628,7 +594,6 @@ impl ListStatusIterator {
     }
 
     pub async fn next(&mut self) -> Option<Result<FileStatus>> {
-        print!("DBG: HDFS-NATIVE client.rs ListStatusIterator next() \n");
         let mut next_file: Option<Result<FileStatus>> = None;
         while next_file.is_none() {
             if let Some(iter) = self.iters.last_mut() {
@@ -662,7 +627,6 @@ impl ListStatusIterator {
     }
 
     pub fn into_stream(self) -> BoxStream<'static, Result<FileStatus>> {
-        print!("DBG: HDFS-NATIVE client.rs ListStatusIterator into_stream() \n");
         let listing = stream::unfold(self, |mut state| async move {
             let next = state.next().await;
             next.map(|n| (n, state))
@@ -687,7 +651,6 @@ pub struct FileStatus {
 
 impl FileStatus {
     fn from(value: HdfsFileStatusProto, base_path: &str) -> Self {
-        print!("DBG: HDFS-NATIVE client.rs FileStatus from() \n");
         let mut path = PathBuf::from(base_path);
         if let Ok(relative_path) = std::str::from_utf8(&value.path) {
             if !relative_path.is_empty() {
@@ -725,7 +688,6 @@ pub struct ContentSummary {
 
 impl From<ContentSummaryProto> for ContentSummary {
     fn from(value: ContentSummaryProto) -> Self {
-        print!("DBG: HDFS-NATIVE client.rs ContentSummaryProto from() \n");
         ContentSummary {
             length: value.length,
             file_count: value.file_count,
