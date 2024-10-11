@@ -39,7 +39,7 @@ use crate::security::user::UserInfo;
 use crate::{HdfsError, Result};
 
 const HADOOP_USER_NAME: &str = "HADOOP_USER_NAME";
-const PEMS_DIR: &str = "PEMS_DIR";
+const MATERIAL_DIRECTORY: &str = "MATERIAL_DIRECTORY";
 
 const PROTOCOL: &str = "org.apache.hadoop.hdfs.protocol.ClientProtocol";
 const DATA_TRANSFER_VERSION: u16 = 28;
@@ -78,13 +78,13 @@ async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
         cert_chain, 
         key_der) = 
         
-        if !env::var(HADOOP_USER_NAME).is_err() && !env::var(PEMS_DIR).is_err() {
+        if !env::var(HADOOP_USER_NAME).is_err() && !env::var(MATERIAL_DIRECTORY).is_err() {
             let hadoop_user_name = env::var(HADOOP_USER_NAME).unwrap();
-            let pems_dir = env::var(PEMS_DIR).unwrap();
+            let pems_dir = env::var(MATERIAL_DIRECTORY).unwrap();
 
-            let root_ca_bundle_filename: String = format!("{hadoop_user_name}_root_ca.pem");
-            let client_certificates_bundle_filename: String = format!("{hadoop_user_name}_certificate_bundle.pem");
-            let client_key_filename: String = format!("{hadoop_user_name}_private_key.pem");
+            let root_ca_bundle_filename: String = format!("{hadoop_user_name}__cert.pem");
+            let client_certificates_bundle_filename: String = format!("{hadoop_user_name}__tstore.pem");
+            let client_key_filename: String = format!("{hadoop_user_name}__kstore.pem");
 
             let root_ca_bundle: String = format!("{}/{}", pems_dir, root_ca_bundle_filename);
             let client_certificate_bundle: String = format!("{}/{}", pems_dir, client_certificates_bundle_filename);
