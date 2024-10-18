@@ -38,8 +38,7 @@ use crate::security::sasl::{SaslReader, SaslRpcClient, SaslWriter};
 use crate::security::user::UserInfo;
 use crate::{HdfsError, Result};
 
-const HADOOP_USER_NAME: &str = "HADOOP_USER_NAME";
-const MATERIAL_DIRECTORY: &str = "MATERIAL_DIRECTORY";
+const HOPSWORKS_CERT_DIR: &str = "HOPSWORKS_CERT_DIR";
 
 const PROTOCOL: &str = "org.apache.hadoop.hdfs.protocol.ClientProtocol";
 const DATA_TRANSFER_VERSION: u16 = 28;
@@ -78,13 +77,12 @@ async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
         cert_chain, 
         key_der) = 
         
-        if !env::var(HADOOP_USER_NAME).is_err() && !env::var(MATERIAL_DIRECTORY).is_err() {
-            let hadoop_user_name = env::var(HADOOP_USER_NAME).unwrap();
-            let pems_dir = env::var(MATERIAL_DIRECTORY).unwrap();
+        if !env::var(HOPSWORKS_CERT_DIR).is_err() {
+            let pems_dir = env::var(HOPSWORKS_CERT_DIR).unwrap();
 
-            let root_ca_bundle_filename: String = format!("{hadoop_user_name}__cert.pem");
-            let client_certificates_bundle_filename: String = format!("{hadoop_user_name}__tstore.pem");
-            let client_key_filename: String = format!("{hadoop_user_name}__kstore.pem");
+            let root_ca_bundle_filename: String = format!("ca_chain.pem");
+            let client_certificates_bundle_filename: String = format!("client_cert.pem");
+            let client_key_filename: String = format!("client_key.pem");
 
             let root_ca_bundle: String = format!("{}/{}", pems_dir, root_ca_bundle_filename);
             let client_certificate_bundle: String = format!("{}/{}", pems_dir, client_certificates_bundle_filename);
@@ -94,9 +92,9 @@ async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
             load_certs(&client_certificate_bundle), 
             load_private_key(&client_key))
         } else {
-            (PathBuf::from("/srv/hopsworks-data/super_crypto/hdfs/hops_root_ca.pem"), 
-            load_certs("/srv/hops/super_crypto/hdfs/hdfs_certificate_bundle.pem"), 
-            load_private_key("/srv/hops/super_crypto/hdfs/hdfs_priv.pem"))
+            (PathBuf::from("/srv/hops/jupyter/certificates/ca_chain.pem"), 
+            load_certs("/srv/hops/jupyter/certificates/client_cert.pem"), 
+            load_private_key("/srv/hops/jupyter/certificates/client_key.pem"))
         }
     ;
 
