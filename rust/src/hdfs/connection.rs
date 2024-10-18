@@ -38,7 +38,7 @@ use crate::security::sasl::{SaslReader, SaslRpcClient, SaslWriter};
 use crate::security::user::UserInfo;
 use crate::{HdfsError, Result};
 
-const HOPSWORKS_CERT_DIR: &str = "HOPSWORKS_CERT_DIR";
+const SECRETS_DIR: &str = "SECRETS_DIR";
 
 const PROTOCOL: &str = "org.apache.hadoop.hdfs.protocol.ClientProtocol";
 const DATA_TRANSFER_VERSION: u16 = 28;
@@ -77,8 +77,8 @@ async fn connect_tls(addr: &str) -> Result<TlsStream<TcpStream>> {
         cert_chain, 
         key_der) = 
         
-        if !env::var(HOPSWORKS_CERT_DIR).is_err() {
-            let pems_dir = env::var(HOPSWORKS_CERT_DIR).unwrap();
+        if !env::var(SECRETS_DIR).is_err() {
+            let pems_dir = env::var(SECRETS_DIR).unwrap();
 
             let root_ca_bundle_filename: String = format!("ca_chain.pem");
             let client_certificates_bundle_filename: String = format!("client_cert.pem");
